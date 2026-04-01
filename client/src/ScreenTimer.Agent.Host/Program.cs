@@ -23,4 +23,8 @@ builder.Services.AddHttpClient<IAgentApiClient, AgentApiClient>(client =>
 builder.Services.AddHostedService<AgentWorker>();
 
 var host = builder.Build();
+
+var logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("ScreenTimer.Agent");
+logger.LogInformation("Screen Timer Agent starting — server: {ServerUrl}", serverUrl);
+
 host.Run();

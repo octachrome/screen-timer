@@ -40,7 +40,7 @@
 - [ ] Create ScreenTimer.Agent.IntegrationTests
 - [ ] Add cross-language contract smoke test
 - [x] Add retry/backoff for network failures
-- [ ] Polish logging
+- [x] Polish logging
 
 ## Discovered Tasks
 - [ ] Replace console ToastNotificationSink with real Windows toast notifications

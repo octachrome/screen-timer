@@ -23,6 +23,7 @@ public sealed class AgentWorker : BackgroundService
     private AgentState _state = new();
     private int _configFailures;
     private int _usagePushFailures;
+    private string? _previousForegroundExe;
 
     public AgentWorker(
         IForegroundWindowProbe probe,
@@ -72,6 +73,14 @@ public sealed class AgentWorker : BackgroundService
     {
         var sample = _probe.Sample();
         var now = _clock.Now;
+
+        // Log foreground changes
+        if (!string.Equals(sample.ExeName, _previousForegroundExe, StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogInformation("Foreground changed: {PreviousExe} -> {CurrentExe}",
+                _previousForegroundExe ?? "(none)", sample.ExeName ?? "(none)");
+            _previousForegroundExe = sample.ExeName;
+        }
 
         // Poll config if due (with backoff on failures)
         List<AppRule>? newRules = null;
