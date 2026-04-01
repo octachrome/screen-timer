@@ -23,7 +23,7 @@
 - [x] Create ScreenTimer.Agent.Windows project
 - [x] Implement AgentApiClient (HttpClient wrapper)
 - [x] Implement JsonStateStore (read/write JSON in %LocalAppData%)
-- [ ] Add adapter-level tests (JSON serialization, file round-trip)
+- [x] Add adapter-level tests (JSON serialization, file round-trip)
 
 ## Phase 3: Windows Adapters + Background Host
 - [x] Implement Win32ForegroundWindowProbe (P/Invoke)

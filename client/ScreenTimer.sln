@@ -13,6 +13,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScreenTimer.Agent.Windows",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScreenTimer.Agent.Host", "src\ScreenTimer.Agent.Host\ScreenTimer.Agent.Host.csproj", "{A385F159-746C-456D-80DC-8E6B14D3608D}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScreenTimer.Agent.Windows.Tests", "tests\ScreenTimer.Agent.Windows.Tests\ScreenTimer.Agent.Windows.Tests.csproj", "{9654E1B9-CA67-49A7-8376-187EC95BEAEA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -71,6 +75,18 @@ Global
 		{A385F159-746C-456D-80DC-8E6B14D3608D}.Release|x64.Build.0 = Release|Any CPU
 		{A385F159-746C-456D-80DC-8E6B14D3608D}.Release|x86.ActiveCfg = Release|Any CPU
 		{A385F159-746C-456D-80DC-8E6B14D3608D}.Release|x86.Build.0 = Release|Any CPU
+		{9654E1B9-CA67-49A7-8376-187EC95BEAEA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9654E1B9-CA67-49A7-8376-187EC95BEAEA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9654E1B9-CA67-49A7-8376-187EC95BEAEA}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9654E1B9-CA67-49A7-8376-187EC95BEAEA}.Debug|x64.Build.0 = Debug|Any CPU
+		{9654E1B9-CA67-49A7-8376-187EC95BEAEA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9654E1B9-CA67-49A7-8376-187EC95BEAEA}.Debug|x86.Build.0 = Debug|Any CPU
+		{9654E1B9-CA67-49A7-8376-187EC95BEAEA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9654E1B9-CA67-49A7-8376-187EC95BEAEA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9654E1B9-CA67-49A7-8376-187EC95BEAEA}.Release|x64.ActiveCfg = Release|Any CPU
+		{9654E1B9-CA67-49A7-8376-187EC95BEAEA}.Release|x64.Build.0 = Release|Any CPU
+		{9654E1B9-CA67-49A7-8376-187EC95BEAEA}.Release|x86.ActiveCfg = Release|Any CPU
+		{9654E1B9-CA67-49A7-8376-187EC95BEAEA}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -80,5 +96,6 @@ Global
 		{BF50E6B0-EE14-4BC3-967B-1B019A442BBB} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{1DEA3138-9E3E-41C2-887D-4262EE6CCAA4} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{A385F159-746C-456D-80DC-8E6B14D3608D} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{9654E1B9-CA67-49A7-8376-187EC95BEAEA} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal
