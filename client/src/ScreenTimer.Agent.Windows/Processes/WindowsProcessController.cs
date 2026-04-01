@@ -7,14 +7,27 @@ public sealed class WindowsProcessController : IProcessController
 {
     public async Task ForceCloseAsync(string exeName)
     {
-        foreach (var process in Process.GetProcessesByName(exeName))
+        // Process.GetProcessesByName expects the name without extension
+        var processName = Path.GetFileNameWithoutExtension(exeName);
+
+        foreach (var process in Process.GetProcessesByName(processName))
         {
             try
             {
                 process.CloseMainWindow();
-                if (!process.WaitForExit(5000))
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                await process.WaitForExitAsync(cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // Graceful close timed out — kill the process
+                try
                 {
                     process.Kill();
+                }
+                catch
+                {
+                    // Swallow kill failure so the agent continues running
                 }
             }
             catch
@@ -26,7 +39,5 @@ public sealed class WindowsProcessController : IProcessController
                 process.Dispose();
             }
         }
-
-        await Task.CompletedTask;
     }
 }

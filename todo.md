@@ -44,4 +44,8 @@
 
 ## Discovered Tasks
 - [x] Replace console ToastNotificationSink with real Windows toast notifications
-- [ ] Add .gitignore for bin/obj (done)
+- [x] Add .gitignore for bin/obj
+- [x] Fix WindowsProcessController exe name bug (GetProcessesByName needs name without .exe extension)
+- [x] Fix WindowsProcessController to use async WaitForExitAsync instead of blocking WaitForExit
+- [x] Set Product name in Host csproj for toast notification title
+- [ ] Write README with startup/packaging instructions
