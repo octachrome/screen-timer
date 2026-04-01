@@ -34,10 +34,10 @@
 - [x] Wire DI and configuration (appsettings.json)
 
 ## Phase 4: Fullscreen Harness
-- [ ] Build ScreenTimer.FullscreenHarness
+- [x] Build ScreenTimer.FullscreenHarness
 
 ## Phase 5: Integration Tests + Stabilization
-- [ ] Create ScreenTimer.Agent.IntegrationTests
+- [x] Create ScreenTimer.Agent.IntegrationTests
 - [x] Add cross-language contract smoke test
 - [x] Add retry/backoff for network failures
 - [x] Polish logging
@@ -48,4 +48,4 @@
 - [x] Fix WindowsProcessController exe name bug (GetProcessesByName needs name without .exe extension)
 - [x] Fix WindowsProcessController to use async WaitForExitAsync instead of blocking WaitForExit
 - [x] Set Product name in Host csproj for toast notification title
-- [ ] Write README with startup/packaging instructions
+- [x] Write README with startup/packaging instructions
