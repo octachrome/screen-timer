@@ -43,5 +43,5 @@
 - [x] Polish logging
 
 ## Discovered Tasks
-- [ ] Replace console ToastNotificationSink with real Windows toast notifications
+- [x] Replace console ToastNotificationSink with real Windows toast notifications
 - [ ] Add .gitignore for bin/obj (done)
