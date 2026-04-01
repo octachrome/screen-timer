@@ -20,18 +20,18 @@
 - [x] Write persistence round-trip tests (3 tests)
 
 ## Phase 2: HTTP Client + Persistence Adapters
-- [ ] Create ScreenTimer.Agent.Windows project
-- [ ] Implement AgentApiClient (HttpClient wrapper)
-- [ ] Implement JsonStateStore (read/write JSON in %LocalAppData%)
+- [x] Create ScreenTimer.Agent.Windows project
+- [x] Implement AgentApiClient (HttpClient wrapper)
+- [x] Implement JsonStateStore (read/write JSON in %LocalAppData%)
 - [ ] Add adapter-level tests (JSON serialization, file round-trip)
 
 ## Phase 3: Windows Adapters + Background Host
-- [ ] Implement Win32ForegroundWindowProbe (P/Invoke)
-- [ ] Implement ToastNotificationSink
-- [ ] Implement WindowsProcessController (graceful close → kill)
-- [ ] Create ScreenTimer.Agent.Host project with GenericHost + BackgroundService
-- [ ] Implement AgentWorker (1-second tick loop)
-- [ ] Wire DI and configuration (appsettings.json)
+- [x] Implement Win32ForegroundWindowProbe (P/Invoke)
+- [x] Implement ToastNotificationSink (console placeholder — TODO: real toast)
+- [x] Implement WindowsProcessController (graceful close → kill)
+- [x] Create ScreenTimer.Agent.Host project with GenericHost + BackgroundService
+- [x] Implement AgentWorker (1-second tick loop)
+- [x] Wire DI and configuration (appsettings.json)
 
 ## Phase 4: Fullscreen Harness
 - [ ] Build ScreenTimer.FullscreenHarness
@@ -41,3 +41,7 @@
 - [ ] Add cross-language contract smoke test
 - [ ] Add retry/backoff for network failures
 - [ ] Polish logging
+
+## Discovered Tasks
+- [ ] Replace console ToastNotificationSink with real Windows toast notifications
+- [ ] Add .gitignore for bin/obj (done)

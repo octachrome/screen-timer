@@ -1,0 +1,149 @@
+using Microsoft.Extensions.Logging;
+using ScreenTimer.Agent.Core.Dtos;
+using ScreenTimer.Agent.Core.Engine;
+using ScreenTimer.Agent.Core.Interfaces;
+using ScreenTimer.Agent.Core.Models;
+
+namespace ScreenTimer.Agent.Host;
+
+public sealed class AgentWorker : BackgroundService
+{
+    private readonly IForegroundWindowProbe _probe;
+    private readonly IAgentApiClient _apiClient;
+    private readonly INotificationSink _notifications;
+    private readonly IProcessController _processController;
+    private readonly IStateStore _stateStore;
+    private readonly IClock _clock;
+    private readonly ILogger<AgentWorker> _logger;
+
+    private readonly TimeSpan _tickInterval = TimeSpan.FromSeconds(1);
+    private readonly TimeSpan _configPollInterval = TimeSpan.FromSeconds(30);
+
+    private AgentState _state = new();
+
+    public AgentWorker(
+        IForegroundWindowProbe probe,
+        IAgentApiClient apiClient,
+        INotificationSink notifications,
+        IProcessController processController,
+        IStateStore stateStore,
+        IClock clock,
+        ILogger<AgentWorker> logger)
+    {
+        _probe = probe;
+        _apiClient = apiClient;
+        _notifications = notifications;
+        _processController = processController;
+        _stateStore = stateStore;
+        _clock = clock;
+        _logger = logger;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        _logger.LogInformation("Agent worker starting");
+
+        var loaded = _stateStore.Load();
+        if (loaded is not null)
+        {
+            _state = loaded;
+            _logger.LogInformation("Restored persisted state for date {Date}", _state.CurrentDate);
+        }
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                await TickAsync(stoppingToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogError(ex, "Error during tick");
+            }
+
+            await Task.Delay(_tickInterval, stoppingToken);
+        }
+    }
+
+    private async Task TickAsync(CancellationToken ct)
+    {
+        var sample = _probe.Sample();
+        var now = _clock.Now;
+
+        // Poll config if due
+        List<AppRule>? newRules = null;
+        if ((now - _state.LastConfigPollTime).TotalSeconds >= _configPollInterval.TotalSeconds)
+        {
+            try
+            {
+                var configs = await _apiClient.GetConfigAsync(ct);
+                newRules = configs.Select(c => new AppRule
+                {
+                    ExeName = c.ExeName,
+                    DailyBudgetMinutes = c.DailyBudgetMinutes
+                }).ToList();
+                _logger.LogDebug("Config polled: {Count} app(s)", newRules.Count);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "Config poll failed");
+            }
+        }
+
+        var result = AgentEngine.Tick(_state, sample, newRules);
+        _state = result.UpdatedState;
+
+        foreach (var command in result.Commands)
+        {
+            await DispatchCommandAsync(command, ct);
+        }
+    }
+
+    private async Task DispatchCommandAsync(EngineCommand command, CancellationToken ct)
+    {
+        switch (command)
+        {
+            case ShowToastCommand toast:
+                _logger.LogInformation("Toast: {ExeName} — {Minutes} min remaining", toast.ExeName, toast.RemainingMinutes);
+                _notifications.ShowToast(toast.ExeName, toast.RemainingMinutes);
+                break;
+
+            case PushUsageCommand push:
+                try
+                {
+                    await _apiClient.PushUsageAsync(push.Payload, ct);
+                    AgentEngine.MarkUsagePushSucceeded(_state, push.Payload);
+                    _logger.LogDebug("Usage pushed: {Count} app(s)", push.Payload.Usage.Count);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogWarning(ex, "Usage push failed, will retry");
+                }
+                break;
+
+            case ForceCloseCommand close:
+                _logger.LogWarning("Enforcing close: {ExeName}", close.ExeName);
+                try
+                {
+                    await _processController.ForceCloseAsync(close.ExeName);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to force-close {ExeName}", close.ExeName);
+                }
+                break;
+
+            case PersistStateCommand:
+                try
+                {
+                    _stateStore.Save(_state);
+                    _logger.LogDebug("State persisted");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to persist state");
+                }
+                break;
+        }
+    }
+}
