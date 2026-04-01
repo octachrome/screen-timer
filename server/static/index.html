@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Screen Timer</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="container">
+    <h1>Screen Timer</h1>
+
+    <section>
+      <h2>Add Application</h2>
+      <form id="add-app-form">
+        <label for="exe-name">Executable name</label>
+        <input type="text" id="exe-name" name="exe-name" placeholder="e.g. Fortnite.exe" required>
+        <label for="daily-budget">Daily budget (minutes)</label>
+        <input type="number" id="daily-budget" name="daily-budget" min="1" required>
+        <button type="submit">Add</button>
+        <div id="form-error"></div>
+      </form>
+    </section>
+
+    <section>
+      <h2>Tracked Applications</h2>
+      <div id="last-updated"></div>
+      <div id="app-list"></div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

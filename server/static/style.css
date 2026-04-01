@@ -1,0 +1,28 @@
+.exhausted {
+  color: var(--pico-color-red-500, #e53935);
+  font-weight: bold;
+}
+
+#form-error {
+  color: var(--pico-color-red-500, #e53935);
+  margin-top: 0.5rem;
+  min-height: 1.5em;
+}
+
+#last-updated {
+  font-size: 0.85rem;
+  color: var(--pico-muted-color, #6c757d);
+  margin-bottom: 1rem;
+}
+
+td button {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+  margin-right: 0.25rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: var(--pico-muted-color, #6c757d);
+}
