@@ -18,8 +18,11 @@ public sealed class AgentWorker : BackgroundService
 
     private readonly TimeSpan _tickInterval = TimeSpan.FromSeconds(1);
     private readonly TimeSpan _configPollInterval = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(5);
 
     private AgentState _state = new();
+    private int _configFailures;
+    private int _usagePushFailures;
 
     public AgentWorker(
         IForegroundWindowProbe probe,
@@ -70,9 +73,10 @@ public sealed class AgentWorker : BackgroundService
         var sample = _probe.Sample();
         var now = _clock.Now;
 
-        // Poll config if due
+        // Poll config if due (with backoff on failures)
         List<AppRule>? newRules = null;
-        if ((now - _state.LastConfigPollTime).TotalSeconds >= _configPollInterval.TotalSeconds)
+        var configInterval = GetBackoffInterval(_configPollInterval, _configFailures);
+        if ((now - _state.LastConfigPollTime).TotalSeconds >= configInterval.TotalSeconds)
         {
             try
             {
@@ -82,11 +86,15 @@ public sealed class AgentWorker : BackgroundService
                     ExeName = c.ExeName,
                     DailyBudgetMinutes = c.DailyBudgetMinutes
                 }).ToList();
+                _configFailures = 0;
                 _logger.LogDebug("Config polled: {Count} app(s)", newRules.Count);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                _logger.LogWarning(ex, "Config poll failed");
+                _configFailures++;
+                _logger.LogWarning(ex, "Config poll failed (attempt {Attempt}, next retry in {Backoff}s)",
+                    _configFailures, GetBackoffInterval(_configPollInterval, _configFailures).TotalSeconds);
+                _state.LastConfigPollTime = now;
             }
         }
 
@@ -113,11 +121,14 @@ public sealed class AgentWorker : BackgroundService
                 {
                     await _apiClient.PushUsageAsync(push.Payload, ct);
                     AgentEngine.MarkUsagePushSucceeded(_state, push.Payload);
+                    _usagePushFailures = 0;
                     _logger.LogDebug("Usage pushed: {Count} app(s)", push.Payload.Usage.Count);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    _logger.LogWarning(ex, "Usage push failed, will retry");
+                    _usagePushFailures++;
+                    _logger.LogWarning(ex, "Usage push failed (attempt {Attempt}), will retry",
+                        _usagePushFailures);
                 }
                 break;
 
@@ -145,5 +156,14 @@ public sealed class AgentWorker : BackgroundService
                 }
                 break;
         }
+    }
+
+    private static TimeSpan GetBackoffInterval(TimeSpan baseInterval, int failureCount)
+    {
+        if (failureCount <= 0)
+            return baseInterval;
+
+        var backoffSeconds = baseInterval.TotalSeconds * Math.Pow(2, Math.Min(failureCount, 10));
+        return TimeSpan.FromSeconds(Math.Min(backoffSeconds, MaxBackoff.TotalSeconds));
     }
 }

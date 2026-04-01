@@ -39,7 +39,7 @@
 ## Phase 5: Integration Tests + Stabilization
 - [ ] Create ScreenTimer.Agent.IntegrationTests
 - [ ] Add cross-language contract smoke test
-- [ ] Add retry/backoff for network failures
+- [x] Add retry/backoff for network failures
 - [ ] Polish logging
 
 ## Discovered Tasks
