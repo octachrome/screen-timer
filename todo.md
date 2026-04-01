@@ -19,5 +19,6 @@
 - [x] 8. Auto-refresh polling every 30 seconds
 - [x] 9. "Last updated" timestamp display
 - [x] 10. Empty state messaging ("No applications tracked yet")
-- [ ] 11. Loading state while fetching
-- [ ] 12. Visual polish and final review
+- [x] 11. Loading state while fetching
+- [x] 12. Add `class="secondary outline"` to Delete buttons to visually distinguish from Edit
+- [x] 13. Visual polish and final review

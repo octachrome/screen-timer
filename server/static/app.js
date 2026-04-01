@@ -56,6 +56,7 @@ function renderTable(summaries) {
     });
 
     const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'secondary outline';
     deleteBtn.textContent = 'Delete';
     deleteBtn.addEventListener('click', () => {
       deleteApp(row.exe_name);
@@ -77,7 +78,14 @@ function renderTable(summaries) {
 }
 
 async function refreshData() {
+  const container = document.getElementById('app-list');
+  if (!container.hasChildNodes()) {
+    container.setAttribute('aria-busy', 'true');
+    container.textContent = 'Loading…';
+  }
+
   const summaries = await fetchUsage();
+  container.removeAttribute('aria-busy');
   renderTable(summaries);
 
   const now = new Date();
