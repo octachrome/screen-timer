@@ -1,3 +1,9 @@
+// Package server implements the Screen Timer HTTP server.
+// It provides REST endpoints for two consumers:
+//   - /api/        — the web-based management UI (add/edit/delete apps, view usage)
+//   - /api/agent/  — the Windows agent (poll config, push usage data)
+//
+// Handlers are thin wrappers: validate input → call Store → write JSON response.
 package server
 
 import (
@@ -6,12 +12,14 @@ import (
 	"time"
 )
 
+// writeJSON serialises v as JSON and writes it with the given HTTP status code.
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(v)
 }
 
+// writeError sends a JSON error response: {"error": "msg"}.
 func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
 }
@@ -70,6 +78,7 @@ func handleListApps(store *Store) http.HandlerFunc {
 }
 
 // handleAddApp adds a new application to track.
+// Returns 201 on success, 400 for validation errors, 409 if the app already exists.
 func handleAddApp(store *Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req AddAppRequest
@@ -151,6 +160,8 @@ func handleAgentConfig(store *Store) http.HandlerFunc {
 }
 
 // handleAgentUsage records usage data pushed by the agent.
+// Errors for individual apps (e.g. unknown exe) are silently ignored so the
+// agent doesn't fail when it reports usage for an app the manager has deleted.
 func handleAgentUsage(store *Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var push UsagePush
@@ -159,6 +170,7 @@ func handleAgentUsage(store *Store) http.HandlerFunc {
 			return
 		}
 		for _, report := range push.Usage {
+			// Ignore errors — the agent may report usage for apps already removed
 			store.RecordUsage(report.ExeName, report.Seconds)
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})

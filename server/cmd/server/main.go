@@ -1,3 +1,9 @@
+// Screen Timer server entrypoint.
+//
+// Starts an HTTP server that serves the REST API (for the management UI and
+// the Windows agent) and static frontend assets from ./static.
+// The listen port defaults to 8080 and can be overridden with the PORT
+// environment variable.
 package main
 
 import (

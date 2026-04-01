@@ -7,15 +7,22 @@ import (
 	"time"
 )
 
+// Store is the in-memory data store for tracked applications and their usage.
+// All methods are safe for concurrent access; reads use an RWMutex so
+// multiple readers can proceed in parallel.
+// Note: data is not persisted — restarting the server clears all state.
 type Store struct {
 	mu   sync.RWMutex
-	apps map[string]*Application
+	apps map[string]*Application // keyed by ExeName
 }
 
+// NewStore creates an empty Store ready for use.
 func NewStore() *Store {
 	return &Store{apps: make(map[string]*Application)}
 }
 
+// AddApp registers a new application to track. Returns an error if an
+// application with the same exeName already exists (duplicate → 409 in the API).
 func (s *Store) AddApp(exeName string, budget time.Duration) (*Application, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -32,6 +39,7 @@ func (s *Store) AddApp(exeName string, budget time.Duration) (*Application, erro
 	return app, nil
 }
 
+// GetApp returns the Application with the given exeName, or an error if not found.
 func (s *Store) GetApp(exeName string) (*Application, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -43,6 +51,7 @@ func (s *Store) GetApp(exeName string) (*Application, error) {
 	return app, nil
 }
 
+// ListApps returns all tracked applications sorted alphabetically by ExeName.
 func (s *Store) ListApps() []*Application {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -57,6 +66,8 @@ func (s *Store) ListApps() []*Application {
 	return result
 }
 
+// UpdateBudget changes the daily budget for an existing application.
+// Returns an error if the app is not found (→ 404 in the API).
 func (s *Store) UpdateBudget(exeName string, budget time.Duration) (*Application, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -69,6 +80,7 @@ func (s *Store) UpdateBudget(exeName string, budget time.Duration) (*Application
 	return app, nil
 }
 
+// DeleteApp removes a tracked application. Returns an error if not found.
 func (s *Store) DeleteApp(exeName string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -80,6 +92,11 @@ func (s *Store) DeleteApp(exeName string) error {
 	return nil
 }
 
+// RecordUsage adds the given number of seconds to an application's UsedToday.
+// If the current date differs from LastResetDate, UsedToday is reset to zero
+// first (automatic daily reset). Returns an error for unknown apps; the
+// handler silently ignores that error so the agent doesn't fail when it
+// reports usage for an app the manager has already deleted.
 func (s *Store) RecordUsage(exeName string, seconds int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -89,6 +106,7 @@ func (s *Store) RecordUsage(exeName string, seconds int) error {
 		return fmt.Errorf("app not found: %s", exeName)
 	}
 
+	// Reset accumulated usage when the date rolls over
 	today := time.Now().Format("2006-01-02")
 	if app.LastResetDate != today {
 		app.UsedToday = 0
@@ -98,6 +116,9 @@ func (s *Store) RecordUsage(exeName string, seconds int) error {
 	return nil
 }
 
+// GetUsageSummary returns a UsageSummary for every tracked app, sorted by
+// ExeName. This is the primary data source for the UI's "Tracked Applications"
+// table (GET /api/usage/today).
 func (s *Store) GetUsageSummary() []UsageSummary {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
