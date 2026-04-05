@@ -41,6 +41,14 @@ A screen time management system for Windows, allowing a parent (manager) to set 
   - **Extend the current day's budget** for any application, group, or "All".
   - **View today's usage** per application and per group (time used vs. budget remaining).
 
+### F3a: Last Active Process Display
+
+- The web UI shows the last-focused process reported by the client agent, along with how recently it was seen (e.g., "Last active: FortniteClient — 2 min ago").
+- An "Add to Group" button next to it opens a dropdown listing existing groups plus a "Create New Group" option.
+  - Selecting an existing group adds the process to that group (via PUT).
+  - Selecting "Create New Group" pre-fills the Add Application form with the process name.
+- The server exposes the last-reported foreground process via a new endpoint (e.g., `GET /api/agent/status`).
+
 ### F4: Child Notifications
 
 - Notifications appear when there are **10 minutes, 5 minutes, and 1 minute** remaining on an application's budget.
