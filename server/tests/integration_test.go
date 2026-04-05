@@ -181,6 +181,96 @@ func TestIntegrationFullSession(t *testing.T) {
 	}
 }
 
+func TestIntegrationAddGroupResponseHasProcesses(t *testing.T) {
+	ts, client := setupTestServer()
+	defer ts.Close()
+
+	summary, err := client.AddGroup(mockclient.AddGroupRequest{Name: "Fortnite", Process: "Fortnite", DailyBudgetMinutes: 60})
+	if err != nil {
+		t.Fatalf("AddGroup failed: %v", err)
+	}
+	if summary.Name != "Fortnite" {
+		t.Errorf("expected name Fortnite, got %s", summary.Name)
+	}
+	if len(summary.Processes) != 1 || summary.Processes[0] != "Fortnite" {
+		t.Errorf("expected processes [Fortnite], got %v", summary.Processes)
+	}
+}
+
+func TestIntegrationUpdateGroupProcesses(t *testing.T) {
+	ts, client := setupTestServer()
+	defer ts.Close()
+
+	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "Games", Process: "Fortnite", DailyBudgetMinutes: 60})
+	if err != nil {
+		t.Fatalf("AddGroup failed: %v", err)
+	}
+
+	summary, err := client.UpdateGroup("Games", mockclient.UpdateGroupRequest{DailyBudgetMinutes: 120, Processes: []string{"Fortnite", "Minecraft"}})
+	if err != nil {
+		t.Fatalf("UpdateGroup failed: %v", err)
+	}
+	if len(summary.Processes) != 2 {
+		t.Fatalf("expected 2 processes, got %d", len(summary.Processes))
+	}
+	processSet := map[string]bool{}
+	for _, p := range summary.Processes {
+		processSet[p] = true
+	}
+	if !processSet["Fortnite"] || !processSet["Minecraft"] {
+		t.Errorf("expected processes [Fortnite, Minecraft], got %v", summary.Processes)
+	}
+
+	summaries, err := client.GetUsageToday()
+	if err != nil {
+		t.Fatalf("GetUsageToday failed: %v", err)
+	}
+	if len(summaries) != 1 {
+		t.Fatalf("expected 1 summary, got %d", len(summaries))
+	}
+	processSet = map[string]bool{}
+	for _, p := range summaries[0].Processes {
+		processSet[p] = true
+	}
+	if !processSet["Fortnite"] || !processSet["Minecraft"] {
+		t.Errorf("expected processes [Fortnite, Minecraft] in usage, got %v", summaries[0].Processes)
+	}
+}
+
+func TestIntegrationGroupProcessesUsageRoundTrip(t *testing.T) {
+	ts, client := setupTestServer()
+	defer ts.Close()
+
+	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "Games", Process: "Fortnite", DailyBudgetMinutes: 60})
+	if err != nil {
+		t.Fatalf("AddGroup failed: %v", err)
+	}
+
+	_, err = client.UpdateGroup("Games", mockclient.UpdateGroupRequest{DailyBudgetMinutes: 120, Processes: []string{"Fortnite", "Minecraft"}})
+	if err != nil {
+		t.Fatalf("UpdateGroup failed: %v", err)
+	}
+
+	err = client.PushUsage([]mockclient.UsageReport{
+		{ExeName: "Fortnite", Seconds: 300},
+		{ExeName: "Minecraft", Seconds: 600},
+	})
+	if err != nil {
+		t.Fatalf("PushUsage failed: %v", err)
+	}
+
+	summaries, err := client.GetUsageToday()
+	if err != nil {
+		t.Fatalf("GetUsageToday failed: %v", err)
+	}
+	if len(summaries) != 1 {
+		t.Fatalf("expected 1 summary, got %d", len(summaries))
+	}
+	if summaries[0].UsedTodayMinutes != 15 {
+		t.Errorf("expected used 15 minutes, got %d", summaries[0].UsedTodayMinutes)
+	}
+}
+
 func TestIntegrationHealthCheck(t *testing.T) {
 	ts, client := setupTestServer()
 	defer ts.Close()

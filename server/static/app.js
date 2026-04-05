@@ -6,10 +6,10 @@
  * and view today's usage.  Served as a static file by the Go backend.
  *
  * API endpoints used:
- *   GET    /api/usage/today   — load all tracked apps with budget + usage
- *   POST   /api/apps          — add a new tracked app
- *   PUT    /api/apps/{exe}    — update an app's daily budget
- *   DELETE /api/apps/{exe}    — remove a tracked app
+ *   GET    /api/usage/today   — load all tracked groups with budget + usage
+ *   POST   /api/apps          — add a new tracked group
+ *   PUT    /api/apps/{name}   — update a group's daily budget and processes
+ *   DELETE /api/apps/{name}   — remove a tracked group
  */
 'use strict';
 
@@ -20,7 +20,7 @@
 /**
  * Fetch today's usage summaries from the server.
  * Returns an array of UsageSummary objects, each containing:
- *   exe_name, daily_budget_minutes, used_today_minutes, remaining_minutes
+ *   name, processes, daily_budget_minutes, used_today_minutes, remaining_minutes
  */
 async function fetchUsage() {
   const res = await fetch('/api/usage/today');
@@ -53,7 +53,8 @@ function renderTable(summaries) {
   const table = document.createElement('table');
   const thead = document.createElement('thead');
   thead.innerHTML = `<tr>
-    <th>Process</th>
+    <th>Name</th>
+    <th>Processes</th>
     <th>Budget</th>
     <th>Used Today</th>
     <th>Remaining</th>
@@ -65,8 +66,11 @@ function renderTable(summaries) {
   for (const row of summaries) {
     const tr = document.createElement('tr');
 
-    const tdExe = document.createElement('td');
-    tdExe.textContent = row.exe_name;
+    const tdName = document.createElement('td');
+    tdName.textContent = row.name;
+
+    const tdProcesses = document.createElement('td');
+    tdProcesses.textContent = row.processes.join(', ');
 
     const tdBudget = document.createElement('td');
     tdBudget.textContent = `${row.daily_budget_minutes} min`;
@@ -87,20 +91,21 @@ function renderTable(summaries) {
     const editBtn = document.createElement('button');
     editBtn.textContent = 'Edit';
     editBtn.addEventListener('click', () => {
-      startEdit(tdBudget, row.exe_name, row.daily_budget_minutes);
+      startEdit(tdBudget, tdProcesses, row.name, row.daily_budget_minutes, row.processes);
     });
 
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'secondary outline';
     deleteBtn.textContent = 'Delete';
     deleteBtn.addEventListener('click', () => {
-      deleteApp(row.exe_name);
+      deleteApp(row.name);
     });
 
     tdActions.appendChild(editBtn);
     tdActions.appendChild(deleteBtn);
 
-    tr.appendChild(tdExe);
+    tr.appendChild(tdName);
+    tr.appendChild(tdProcesses);
     tr.appendChild(tdBudget);
     tr.appendChild(tdUsed);
     tr.appendChild(tdRemaining);
@@ -144,7 +149,7 @@ async function refreshData() {
 }
 
 // ---------------------------------------------------------------------------
-// Delete App — DELETE /api/apps/{exe}
+// Delete App — DELETE /api/apps/{name}
 // ---------------------------------------------------------------------------
 
 /**
@@ -160,30 +165,38 @@ async function deleteApp(exeName) {
 }
 
 // ---------------------------------------------------------------------------
-// Inline Edit Budget — PUT /api/apps/{exe}
+// Inline Edit — PUT /api/apps/{name}
 // ---------------------------------------------------------------------------
 
 /**
- * Replace the budget cell with a number input + Save/Cancel buttons so the
- * user can edit the daily budget inline without leaving the page.
- * On save: sends PUT /api/apps/{exe} with the new budget value.
- * On cancel: simply re-renders the table to restore the original cell.
+ * Replace the budget and processes cells with inputs + Save/Cancel buttons
+ * so the user can edit inline without leaving the page.
+ * On save: sends PUT /api/apps/{name} with the new budget and processes.
+ * On cancel: simply re-renders the table to restore the original cells.
  */
-function startEdit(budgetCell, exeName, currentValue) {
+function startEdit(budgetCell, processesCell, groupName, currentBudget, currentProcesses) {
   budgetCell.innerHTML = '';
+  processesCell.innerHTML = '';
 
-  const input = document.createElement('input');
-  input.type = 'number';
-  input.min = '1';
-  input.value = currentValue;
+  const budgetInput = document.createElement('input');
+  budgetInput.type = 'number';
+  budgetInput.min = '1';
+  budgetInput.value = currentBudget;
+  budgetCell.appendChild(budgetInput);
+
+  const processesInput = document.createElement('input');
+  processesInput.type = 'text';
+  processesInput.value = currentProcesses.join(', ');
+  processesCell.appendChild(processesInput);
 
   const saveBtn = document.createElement('button');
   saveBtn.textContent = 'Save';
   saveBtn.addEventListener('click', async () => {
-    await fetch(`/api/apps/${encodeURIComponent(exeName)}`, {
+    const processes = processesInput.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    await fetch(`/api/apps/${encodeURIComponent(groupName)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ daily_budget_minutes: parseInt(input.value, 10) }),
+      body: JSON.stringify({ daily_budget_minutes: parseInt(budgetInput.value, 10), processes }),
     });
     await refreshData();
   });
@@ -194,7 +207,6 @@ function startEdit(budgetCell, exeName, currentValue) {
     refreshData();
   });
 
-  budgetCell.appendChild(input);
   budgetCell.appendChild(saveBtn);
   budgetCell.appendChild(cancelBtn);
 }
@@ -206,7 +218,7 @@ function startEdit(budgetCell, exeName, currentValue) {
 document.addEventListener('DOMContentLoaded', () => {
   /**
    * Add App form handler — POST /api/apps
-   * Reads exe_name and daily_budget_minutes from the form inputs.
+   * Reads name, process and daily_budget_minutes from the form inputs.
    * On success (201): clears the form and refreshes the table.
    * On error (409 duplicate / 400 validation): shows an inline error message.
    */
@@ -218,7 +230,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const formError = document.getElementById('form-error');
 
     const body = {
-      exe_name: exeInput.value,
+      name: exeInput.value,
+      process: exeInput.value,
       daily_budget_minutes: parseInt(budgetInput.value, 10),
     };
 

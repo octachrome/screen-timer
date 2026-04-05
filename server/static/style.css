@@ -36,3 +36,15 @@ td button {
   padding: 2rem;
   color: var(--pico-muted-color, #6c757d);
 }
+
+td input[type="text"] {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+  min-width: 10rem;
+}
+
+td input[type="number"] {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+  width: 5rem;
+}
