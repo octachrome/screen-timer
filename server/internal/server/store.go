@@ -159,7 +159,7 @@ func (s *Store) load() {
 
 // AddGroup registers a new group to track. Returns an error if a
 // group with the same name already exists (duplicate → 409 in the API).
-func (s *Store) AddGroup(name string, process string, budget time.Duration) (*Group, error) {
+func (s *Store) AddGroup(name string, processes []string, budget time.Duration) (*Group, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -169,7 +169,7 @@ func (s *Store) AddGroup(name string, process string, budget time.Duration) (*Gr
 
 	g := &Group{
 		Name:        name,
-		Processes:   []string{process},
+		Processes:   processes,
 		DailyBudget: budget,
 	}
 	s.groups[name] = g

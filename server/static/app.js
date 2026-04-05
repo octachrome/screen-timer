@@ -236,9 +236,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const budgetInput = document.getElementById('daily-budget');
     const formError = document.getElementById('form-error');
 
+    const processes = exeInput.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
     const body = {
-      name: exeInput.value,
-      process: exeInput.value,
+      name: processes.join(', '),
+      processes,
       daily_budget_minutes: parseInt(budgetInput.value, 10),
     };
 

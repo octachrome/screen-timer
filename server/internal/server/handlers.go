@@ -92,12 +92,16 @@ func handleAddApp(store *Store) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "name must not be empty")
 			return
 		}
+		if len(req.Processes) == 0 {
+			writeError(w, http.StatusBadRequest, "at least one process is required")
+			return
+		}
 		if req.DailyBudgetMinutes <= 0 {
 			writeError(w, http.StatusBadRequest, "daily_budget_minutes must be greater than 0")
 			return
 		}
 		budget := time.Duration(req.DailyBudgetMinutes) * time.Minute
-		group, err := store.AddGroup(req.Name, req.Process, budget)
+		group, err := store.AddGroup(req.Name, req.Processes, budget)
 		if err != nil {
 			writeError(w, http.StatusConflict, err.Error())
 			return

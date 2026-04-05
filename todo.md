@@ -21,6 +21,11 @@
 ## Data Fetching
 - [x] 11. Verify `fetchUsage()` works with new response shape (name, processes fields)
 
+## Add Form — Multiple Processes
+- [x] 21. Change `AddGroupRequest.Process` (string) → `Processes` ([]string) across server, mockclient, tests
+- [x] 22. Rename label "Process name" → "Process names", placeholder "e.g. Fortnite, Minecraft"
+- [x] 23. Parse comma-separated input, set group name to the joined process names
+
 ## Group Rename
 - [x] 15. Add `name` field to `UpdateGroupRequest` on server
 - [x] 16. Implement rename logic in `store.UpdateGroup` (with conflict detection)

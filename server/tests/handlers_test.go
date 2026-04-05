@@ -19,7 +19,7 @@ func setupRouter() (*server.Store, *http.ServeMux) {
 
 func addGroup(t *testing.T, store *server.Store, name string, process string, budget int) {
 	t.Helper()
-	_, err := store.AddGroup(name, process, time.Duration(budget)*time.Minute)
+	_, err := store.AddGroup(name, []string{process}, time.Duration(budget)*time.Minute)
 	if err != nil {
 		t.Fatalf("failed to add group %s: %v", name, err)
 	}
@@ -37,7 +37,7 @@ func jsonBody(t *testing.T, v any) *bytes.Reader {
 func TestPostAppsValid(t *testing.T) {
 	_, router := setupRouter()
 
-	body := jsonBody(t, server.AddGroupRequest{Name: "Fortnite.exe", Process: "Fortnite.exe", DailyBudgetMinutes: 60})
+	body := jsonBody(t, server.AddGroupRequest{Name: "Fortnite.exe", Processes: []string{"Fortnite.exe"}, DailyBudgetMinutes: 60})
 	req := httptest.NewRequest(http.MethodPost, "/api/apps", body)
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
@@ -69,7 +69,7 @@ func TestPostAppsValid(t *testing.T) {
 func TestPostAppsMissingExeName(t *testing.T) {
 	_, router := setupRouter()
 
-	body := jsonBody(t, server.AddGroupRequest{Name: "", Process: "", DailyBudgetMinutes: 60})
+	body := jsonBody(t, server.AddGroupRequest{Name: "", Processes: []string{}, DailyBudgetMinutes: 60})
 	req := httptest.NewRequest(http.MethodPost, "/api/apps", body)
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
@@ -85,7 +85,7 @@ func TestPostAppsDuplicate(t *testing.T) {
 	store, router := setupRouter()
 	addGroup(t, store, "Fortnite.exe", "Fortnite.exe", 60)
 
-	body := jsonBody(t, server.AddGroupRequest{Name: "Fortnite.exe", Process: "Fortnite.exe", DailyBudgetMinutes: 60})
+	body := jsonBody(t, server.AddGroupRequest{Name: "Fortnite.exe", Processes: []string{"Fortnite.exe"}, DailyBudgetMinutes: 60})
 	req := httptest.NewRequest(http.MethodPost, "/api/apps", body)
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()

@@ -20,7 +20,7 @@ func TestIntegrationAddAppThenAgentPollsConfig(t *testing.T) {
 	ts, client := setupTestServer()
 	defer ts.Close()
 
-	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "chrome.exe", Process: "chrome.exe", DailyBudgetMinutes: 60})
+	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "chrome.exe", Processes: []string{"chrome.exe"}, DailyBudgetMinutes: 60})
 	if err != nil {
 		t.Fatalf("AddGroup failed: %v", err)
 	}
@@ -44,7 +44,7 @@ func TestIntegrationAgentPushesUsageThenManagerViews(t *testing.T) {
 	ts, client := setupTestServer()
 	defer ts.Close()
 
-	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "firefox.exe", Process: "firefox.exe", DailyBudgetMinutes: 120})
+	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "firefox.exe", Processes: []string{"firefox.exe"}, DailyBudgetMinutes: 120})
 	if err != nil {
 		t.Fatalf("AddGroup failed: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestIntegrationUpdateBudgetThenAgentPolls(t *testing.T) {
 	ts, client := setupTestServer()
 	defer ts.Close()
 
-	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "slack.exe", Process: "slack.exe", DailyBudgetMinutes: 30})
+	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "slack.exe", Processes: []string{"slack.exe"}, DailyBudgetMinutes: 30})
 	if err != nil {
 		t.Fatalf("AddGroup failed: %v", err)
 	}
@@ -101,7 +101,7 @@ func TestIntegrationDeleteAppThenAgentPolls(t *testing.T) {
 	ts, client := setupTestServer()
 	defer ts.Close()
 
-	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "discord.exe", Process: "discord.exe", DailyBudgetMinutes: 45})
+	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "discord.exe", Processes: []string{"discord.exe"}, DailyBudgetMinutes: 45})
 	if err != nil {
 		t.Fatalf("AddGroup failed: %v", err)
 	}
@@ -136,7 +136,7 @@ func TestIntegrationFullSession(t *testing.T) {
 	ts, client := setupTestServer()
 	defer ts.Close()
 
-	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "game.exe", Process: "game.exe", DailyBudgetMinutes: 120})
+	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "game.exe", Processes: []string{"game.exe"}, DailyBudgetMinutes: 120})
 	if err != nil {
 		t.Fatalf("AddGroup failed: %v", err)
 	}
@@ -185,7 +185,7 @@ func TestIntegrationAddGroupResponseHasProcesses(t *testing.T) {
 	ts, client := setupTestServer()
 	defer ts.Close()
 
-	summary, err := client.AddGroup(mockclient.AddGroupRequest{Name: "Fortnite", Process: "Fortnite", DailyBudgetMinutes: 60})
+	summary, err := client.AddGroup(mockclient.AddGroupRequest{Name: "Fortnite", Processes: []string{"Fortnite"}, DailyBudgetMinutes: 60})
 	if err != nil {
 		t.Fatalf("AddGroup failed: %v", err)
 	}
@@ -201,7 +201,7 @@ func TestIntegrationUpdateGroupProcesses(t *testing.T) {
 	ts, client := setupTestServer()
 	defer ts.Close()
 
-	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "Games", Process: "Fortnite", DailyBudgetMinutes: 60})
+	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "Games", Processes: []string{"Fortnite"}, DailyBudgetMinutes: 60})
 	if err != nil {
 		t.Fatalf("AddGroup failed: %v", err)
 	}
@@ -241,7 +241,7 @@ func TestIntegrationGroupProcessesUsageRoundTrip(t *testing.T) {
 	ts, client := setupTestServer()
 	defer ts.Close()
 
-	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "Games", Process: "Fortnite", DailyBudgetMinutes: 60})
+	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "Games", Processes: []string{"Fortnite"}, DailyBudgetMinutes: 60})
 	if err != nil {
 		t.Fatalf("AddGroup failed: %v", err)
 	}

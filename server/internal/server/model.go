@@ -47,9 +47,9 @@ type UsagePush struct {
 
 // AddGroupRequest is the request body for POST /api/groups.
 type AddGroupRequest struct {
-	Name               string `json:"name"`
-	Process            string `json:"process"`
-	DailyBudgetMinutes int    `json:"daily_budget_minutes"`
+	Name               string   `json:"name"`
+	Processes          []string `json:"processes"`
+	DailyBudgetMinutes int      `json:"daily_budget_minutes"`
 }
 
 // UpdateGroupRequest is the request body for PUT /api/groups/{name}.

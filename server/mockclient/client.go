@@ -41,9 +41,9 @@ type UsageSummary struct {
 
 // AddGroupRequest mirrors the server's AddGroupRequest.
 type AddGroupRequest struct {
-	Name               string `json:"name"`
-	Process            string `json:"process"`
-	DailyBudgetMinutes int    `json:"daily_budget_minutes"`
+	Name               string   `json:"name"`
+	Processes          []string `json:"processes"`
+	DailyBudgetMinutes int      `json:"daily_budget_minutes"`
 }
 
 // UpdateGroupRequest mirrors the server's UpdateGroupRequest.
