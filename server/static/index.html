@@ -14,13 +14,19 @@
     <section>
       <h2>Add Application</h2>
       <form id="add-app-form">
-        <label for="exe-name">Executable name</label>
-        <input type="text" id="exe-name" name="exe-name" placeholder="e.g. Fortnite.exe" required>
+        <label for="exe-name">Process name</label>
+        <input type="text" id="exe-name" name="exe-name" placeholder="e.g. notepad" required>
         <label for="daily-budget">Daily budget (minutes)</label>
         <input type="number" id="daily-budget" name="daily-budget" min="1" required>
         <button type="submit">Add</button>
         <div id="form-error"></div>
       </form>
+    </section>
+
+    <section>
+      <h2>Agent Tools</h2>
+      <button id="test-popup-btn">Send Test Popup</button>
+      <span id="test-popup-status"></span>
     </section>
 
     <section>

@@ -22,13 +22,14 @@ public class FakeProbe : IForegroundWindowProbe
 public class FakeApiClient : IAgentApiClient
 {
     public List<AppConfigDto> Configs { get; set; } = new();
+    public string? TestPopupAt { get; set; }
     public List<UsagePushDto> PushedUsage { get; } = new();
     public bool ShouldFail { get; set; }
 
-    public Task<List<AppConfigDto>> GetConfigAsync(CancellationToken ct = default)
+    public Task<AgentConfigResponseDto> GetConfigAsync(CancellationToken ct = default)
     {
         if (ShouldFail) throw new HttpRequestException("Fake network error");
-        return Task.FromResult(Configs);
+        return Task.FromResult(new AgentConfigResponseDto { Apps = Configs, TestPopupAt = TestPopupAt });
     }
 
     public Task PushUsageAsync(UsagePushDto push, CancellationToken ct = default)

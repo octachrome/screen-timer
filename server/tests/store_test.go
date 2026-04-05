@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -119,7 +120,7 @@ func TestRecordUsage(t *testing.T) {
 	s := server.NewStore()
 	_, _ = s.AddApp("spotify", 60*time.Minute)
 
-	err := s.RecordUsage("spotify", 30)
+	err := s.RecordUsage("spotify", 30, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -134,9 +135,9 @@ func TestRecordUsageAccumulates(t *testing.T) {
 	s := server.NewStore()
 	_, _ = s.AddApp("vscode", 120*time.Minute)
 
-	_ = s.RecordUsage("vscode", 10)
-	_ = s.RecordUsage("vscode", 20)
-	_ = s.RecordUsage("vscode", 30)
+	_ = s.RecordUsage("vscode", 10, 0)
+	_ = s.RecordUsage("vscode", 20, 0)
+	_ = s.RecordUsage("vscode", 30, 0)
 
 	app, _ := s.GetApp("vscode")
 	if app.UsedToday != 60*time.Second {
@@ -148,7 +149,7 @@ func TestRecordUsageDayReset(t *testing.T) {
 	s := server.NewStore()
 	_, _ = s.AddApp("zoom", 60*time.Minute)
 
-	_ = s.RecordUsage("zoom", 100)
+	_ = s.RecordUsage("zoom", 100, 0)
 
 	app, _ := s.GetApp("zoom")
 	if app.UsedToday != 100*time.Second {
@@ -159,7 +160,7 @@ func TestRecordUsageDayReset(t *testing.T) {
 	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
 	app.LastResetDate = yesterday
 
-	_ = s.RecordUsage("zoom", 25)
+	_ = s.RecordUsage("zoom", 25, 0)
 
 	app, _ = s.GetApp("zoom")
 	if app.UsedToday != 25*time.Second {
@@ -170,9 +171,62 @@ func TestRecordUsageDayReset(t *testing.T) {
 func TestRecordUsageUnknownApp(t *testing.T) {
 	s := server.NewStore()
 
-	err := s.RecordUsage("nonexistent", 10)
+	err := s.RecordUsage("nonexistent", 10, 0)
 	if err == nil {
 		t.Fatal("expected error for unknown app, got nil")
+	}
+}
+
+func TestRecordUsageTotalRecovery(t *testing.T) {
+	s := server.NewStore()
+	_, _ = s.AddApp("game", 60*time.Minute)
+
+	// Simulate: server knows 10s usage, client reports 5s delta but 100s total
+	_ = s.RecordUsage("game", 10, 0)  // initial 10s
+	_ = s.RecordUsage("game", 5, 100) // 5s delta, 100s total → should use 100s
+
+	app, _ := s.GetApp("game")
+	if app.UsedToday != 100*time.Second {
+		t.Errorf("UsedToday = %v, want %v", app.UsedToday, 100*time.Second)
+	}
+}
+
+func TestPersistenceRoundTrip(t *testing.T) {
+	fp := filepath.Join(t.TempDir(), "test.json")
+	s1 := server.NewStoreWithFile(fp)
+	_, _ = s1.AddApp("chrome", 60*time.Minute)
+	_, _ = s1.AddApp("firefox", 120*time.Minute)
+	_ = s1.RecordUsage("chrome", 300, 0)
+
+	// Create a new store from the same file
+	s2 := server.NewStoreWithFile(fp)
+	apps := s2.ListApps()
+	if len(apps) != 2 {
+		t.Fatalf("expected 2 apps after reload, got %d", len(apps))
+	}
+	app, err := s2.GetApp("chrome")
+	if err != nil {
+		t.Fatalf("chrome not found after reload: %v", err)
+	}
+	if app.DailyBudget != 60*time.Minute {
+		t.Errorf("chrome DailyBudget = %v, want %v", app.DailyBudget, 60*time.Minute)
+	}
+	if app.UsedToday != 300*time.Second {
+		t.Errorf("chrome UsedToday = %v, want %v", app.UsedToday, 300*time.Second)
+	}
+}
+
+func TestPersistenceNonExistentFile(t *testing.T) {
+	fp := filepath.Join(t.TempDir(), "subdir", "nonexistent.json")
+	s := server.NewStoreWithFile(fp)
+	apps := s.ListApps()
+	if len(apps) != 0 {
+		t.Errorf("expected 0 apps for new file, got %d", len(apps))
+	}
+	// Should work fine — adding an app creates the file
+	_, err := s.AddApp("test", 30*time.Minute)
+	if err != nil {
+		t.Fatalf("AddApp failed: %v", err)
 	}
 }
 
@@ -181,8 +235,8 @@ func TestGetUsageSummary(t *testing.T) {
 	_, _ = s.AddApp("alpha", 60*time.Minute)
 	_, _ = s.AddApp("beta", 120*time.Minute)
 
-	_ = s.RecordUsage("alpha", 600)  // 10 minutes
-	_ = s.RecordUsage("beta", 1800)  // 30 minutes
+	_ = s.RecordUsage("alpha", 600, 0)  // 10 minutes
+	_ = s.RecordUsage("beta", 1800, 0)  // 30 minutes
 
 	summaries := s.GetUsageSummary()
 	if len(summaries) != 2 {

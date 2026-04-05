@@ -58,6 +58,7 @@ func NewRouter(store *Store) *http.ServeMux {
 	// Agent endpoints
 	mux.HandleFunc("GET /api/agent/config", handleAgentConfig(store))
 	mux.HandleFunc("POST /api/agent/usage", handleAgentUsage(store))
+	mux.HandleFunc("POST /api/agent/test-popup", handleTestPopup(store))
 
 	// Static file serving
 	mux.Handle("/", http.FileServer(http.Dir("./static")))
@@ -155,7 +156,22 @@ func handleAgentConfig(store *Store) http.HandlerFunc {
 		for i := range apps {
 			configs[i] = apps[i].ToAppConfig()
 		}
-		writeJSON(w, http.StatusOK, configs)
+		resp := AgentConfigResponse{Apps: configs}
+		if t := store.GetTestPopupRequestedAt(); !t.IsZero() {
+			resp.TestPopupAt = t.Format(time.RFC3339)
+		}
+		writeJSON(w, http.StatusOK, resp)
+	}
+}
+
+// handleTestPopup triggers a test popup request.
+func handleTestPopup(store *Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		t := store.RequestTestPopup()
+		writeJSON(w, http.StatusOK, map[string]string{
+			"status":       "ok",
+			"requested_at": t.Format(time.RFC3339),
+		})
 	}
 }
 
@@ -171,7 +187,7 @@ func handleAgentUsage(store *Store) http.HandlerFunc {
 		}
 		for _, report := range push.Usage {
 			// Ignore errors — the agent may report usage for apps already removed
-			store.RecordUsage(report.ExeName, report.Seconds)
+			store.RecordUsage(report.ExeName, report.Seconds, report.TotalSeconds)
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	}

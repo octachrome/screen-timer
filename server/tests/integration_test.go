@@ -25,18 +25,18 @@ func TestIntegrationAddAppThenAgentPollsConfig(t *testing.T) {
 		t.Fatalf("AddApp failed: %v", err)
 	}
 
-	configs, err := client.GetConfig()
+	configResp, err := client.GetConfig()
 	if err != nil {
 		t.Fatalf("GetConfig failed: %v", err)
 	}
-	if len(configs) != 1 {
-		t.Fatalf("expected 1 config, got %d", len(configs))
+	if len(configResp.Apps) != 1 {
+		t.Fatalf("expected 1 config, got %d", len(configResp.Apps))
 	}
-	if configs[0].ExeName != "chrome.exe" {
-		t.Errorf("expected exe_name chrome.exe, got %s", configs[0].ExeName)
+	if configResp.Apps[0].ExeName != "chrome.exe" {
+		t.Errorf("expected exe_name chrome.exe, got %s", configResp.Apps[0].ExeName)
 	}
-	if configs[0].DailyBudgetMinutes != 60 {
-		t.Errorf("expected budget 60, got %d", configs[0].DailyBudgetMinutes)
+	if configResp.Apps[0].DailyBudgetMinutes != 60 {
+		t.Errorf("expected budget 60, got %d", configResp.Apps[0].DailyBudgetMinutes)
 	}
 }
 
@@ -85,15 +85,15 @@ func TestIntegrationUpdateBudgetThenAgentPolls(t *testing.T) {
 		t.Fatalf("UpdateApp failed: %v", err)
 	}
 
-	configs, err := client.GetConfig()
+	configResp, err := client.GetConfig()
 	if err != nil {
 		t.Fatalf("GetConfig failed: %v", err)
 	}
-	if len(configs) != 1 {
-		t.Fatalf("expected 1 config, got %d", len(configs))
+	if len(configResp.Apps) != 1 {
+		t.Fatalf("expected 1 config, got %d", len(configResp.Apps))
 	}
-	if configs[0].DailyBudgetMinutes != 90 {
-		t.Errorf("expected budget 90, got %d", configs[0].DailyBudgetMinutes)
+	if configResp.Apps[0].DailyBudgetMinutes != 90 {
+		t.Errorf("expected budget 90, got %d", configResp.Apps[0].DailyBudgetMinutes)
 	}
 }
 
@@ -111,12 +111,12 @@ func TestIntegrationDeleteAppThenAgentPolls(t *testing.T) {
 		t.Fatalf("DeleteApp failed: %v", err)
 	}
 
-	configs, err := client.GetConfig()
+	configResp, err := client.GetConfig()
 	if err != nil {
 		t.Fatalf("GetConfig failed: %v", err)
 	}
-	if len(configs) != 0 {
-		t.Errorf("expected 0 configs after delete, got %d", len(configs))
+	if len(configResp.Apps) != 0 {
+		t.Errorf("expected 0 configs after delete, got %d", len(configResp.Apps))
 	}
 }
 
@@ -169,15 +169,15 @@ func TestIntegrationFullSession(t *testing.T) {
 		t.Errorf("expected remaining 119 minutes, got %d", summaries[0].RemainingMinutes)
 	}
 
-	configs, err := client.GetConfig()
+	configResp, err := client.GetConfig()
 	if err != nil {
 		t.Fatalf("GetConfig failed: %v", err)
 	}
-	if len(configs) != 1 {
-		t.Fatalf("expected 1 config, got %d", len(configs))
+	if len(configResp.Apps) != 1 {
+		t.Fatalf("expected 1 config, got %d", len(configResp.Apps))
 	}
-	if configs[0].DailyBudgetMinutes != 120 {
-		t.Errorf("expected budget still 120, got %d", configs[0].DailyBudgetMinutes)
+	if configResp.Apps[0].DailyBudgetMinutes != 120 {
+		t.Errorf("expected budget still 120, got %d", configResp.Apps[0].DailyBudgetMinutes)
 	}
 }
 

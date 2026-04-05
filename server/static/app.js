@@ -53,7 +53,7 @@ function renderTable(summaries) {
   const table = document.createElement('table');
   const thead = document.createElement('thead');
   thead.innerHTML = `<tr>
-    <th>Executable</th>
+    <th>Process</th>
     <th>Budget</th>
     <th>Used Today</th>
     <th>Remaining</th>
@@ -237,6 +237,24 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
       formError.textContent = data.error;
     }
+  });
+
+  document.getElementById('test-popup-btn').addEventListener('click', async () => {
+    const status = document.getElementById('test-popup-status');
+    try {
+      const res = await fetch('/api/agent/test-popup', { method: 'POST' });
+      if (res.ok) {
+        status.textContent = 'Test popup sent!';
+        status.className = 'success-msg';
+      } else {
+        status.textContent = 'Failed to send test popup';
+        status.className = 'error-msg';
+      }
+    } catch (e) {
+      status.textContent = 'Network error';
+      status.className = 'error-msg';
+    }
+    setTimeout(() => { status.textContent = ''; }, 3000);
   });
 
   // Initial data load

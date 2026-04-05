@@ -9,4 +9,5 @@ public sealed class AgentState
     public DateTimeOffset LastUsageFlushTime { get; set; }
     public string CurrentDate { get; set; } = "";
     public List<AppRule> CurrentRules { get; set; } = new();
+    public DateTimeOffset? LastTestPopupTime { get; set; }
 }

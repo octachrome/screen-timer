@@ -13,6 +13,12 @@ type AppConfig struct {
 	DailyBudgetMinutes int    `json:"daily_budget_minutes"`
 }
 
+// AgentConfigResponse mirrors the server's AgentConfigResponse type.
+type AgentConfigResponse struct {
+	Apps        []AppConfig `json:"apps"`
+	TestPopupAt string      `json:"test_popup_at,omitempty"`
+}
+
 // UsageReport mirrors the server's UsageReport type.
 type UsageReport struct {
 	ExeName string `json:"exe_name"`
@@ -57,7 +63,7 @@ func NewClient(baseURL string) *Client {
 }
 
 // GetConfig fetches the agent configuration (GET /api/agent/config).
-func (c *Client) GetConfig() ([]AppConfig, error) {
+func (c *Client) GetConfig() (*AgentConfigResponse, error) {
 	resp, err := c.HTTPClient.Get(c.BaseURL + "/api/agent/config")
 	if err != nil {
 		return nil, err
@@ -66,11 +72,24 @@ func (c *Client) GetConfig() ([]AppConfig, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status %d", resp.StatusCode)
 	}
-	var configs []AppConfig
-	if err := json.NewDecoder(resp.Body).Decode(&configs); err != nil {
+	var configResp AgentConfigResponse
+	if err := json.NewDecoder(resp.Body).Decode(&configResp); err != nil {
 		return nil, err
 	}
-	return configs, nil
+	return &configResp, nil
+}
+
+// RequestTestPopup triggers a test popup (POST /api/agent/test-popup).
+func (c *Client) RequestTestPopup() error {
+	resp, err := c.HTTPClient.Post(c.BaseURL+"/api/agent/test-popup", "application/json", nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status %d", resp.StatusCode)
+	}
+	return nil
 }
 
 // PushUsage sends a usage report to the server (POST /api/agent/usage).

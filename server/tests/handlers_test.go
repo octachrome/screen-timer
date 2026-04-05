@@ -214,7 +214,7 @@ func TestGetUsageToday(t *testing.T) {
 	store, router := setupRouter()
 	addApp(t, store, "Fortnite.exe", 60)
 	addApp(t, store, "Minecraft.exe", 120)
-	if err := store.RecordUsage("Fortnite.exe", 600); err != nil {
+	if err := store.RecordUsage("Fortnite.exe", 600, 0); err != nil {
 		t.Fatalf("failed to record usage: %v", err)
 	}
 
@@ -270,18 +270,69 @@ func TestGetAgentConfig(t *testing.T) {
 		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
 	}
 
-	var configs []server.AppConfig
-	if err := json.NewDecoder(rr.Body).Decode(&configs); err != nil {
+	var resp server.AgentConfigResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	if len(configs) != 2 {
-		t.Fatalf("expected 2 configs, got %d", len(configs))
+	if len(resp.Apps) != 2 {
+		t.Fatalf("expected 2 configs, got %d", len(resp.Apps))
 	}
-	if configs[0].ExeName != "Fortnite.exe" || configs[0].DailyBudgetMinutes != 60 {
-		t.Errorf("unexpected first config: %+v", configs[0])
+	if resp.Apps[0].ExeName != "Fortnite.exe" || resp.Apps[0].DailyBudgetMinutes != 60 {
+		t.Errorf("unexpected first config: %+v", resp.Apps[0])
 	}
-	if configs[1].ExeName != "Minecraft.exe" || configs[1].DailyBudgetMinutes != 120 {
-		t.Errorf("unexpected second config: %+v", configs[1])
+	if resp.Apps[1].ExeName != "Minecraft.exe" || resp.Apps[1].DailyBudgetMinutes != 120 {
+		t.Errorf("unexpected second config: %+v", resp.Apps[1])
+	}
+	if resp.TestPopupAt != "" {
+		t.Errorf("expected empty test_popup_at, got %s", resp.TestPopupAt)
+	}
+}
+
+func TestPostTestPopup(t *testing.T) {
+	_, router := setupRouter()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/agent/test-popup", nil)
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var resp map[string]string
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp["status"] != "ok" {
+		t.Errorf("expected status ok, got %s", resp["status"])
+	}
+	if resp["requested_at"] == "" {
+		t.Error("expected non-empty requested_at")
+	}
+}
+
+func TestAgentConfigIncludesTestPopupAt(t *testing.T) {
+	store, router := setupRouter()
+
+	// Request a test popup first
+	store.RequestTestPopup()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/agent/config", nil)
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var resp server.AgentConfigResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp.TestPopupAt == "" {
+		t.Error("expected non-empty test_popup_at after requesting test popup")
 	}
 }
 

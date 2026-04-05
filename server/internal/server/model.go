@@ -16,6 +16,12 @@ type AppConfig struct {
 	DailyBudgetMinutes int    `json:"daily_budget_minutes"`
 }
 
+// AgentConfigResponse is the wrapper object returned by GET /api/agent/config.
+type AgentConfigResponse struct {
+	Apps        []AppConfig `json:"apps"`
+	TestPopupAt string      `json:"test_popup_at,omitempty"`
+}
+
 // UsageSummary is the UI-facing view of today's usage for an application.
 type UsageSummary struct {
 	ExeName            string `json:"exe_name"`
@@ -26,8 +32,9 @@ type UsageSummary struct {
 
 // UsageReport is a single entry in the agent's usage push.
 type UsageReport struct {
-	ExeName string `json:"exe_name"`
-	Seconds int    `json:"seconds"`
+	ExeName      string `json:"exe_name"`
+	Seconds      int    `json:"seconds"`
+	TotalSeconds int    `json:"total_seconds"`
 }
 
 // UsagePush is the request body for POST /api/agent/usage.

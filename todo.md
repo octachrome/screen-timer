@@ -1,51 +1,19 @@
-# Screen Timer Client — TODO
+# Screen Timer — Issues
 
-## Phase 1: Core Domain + Headless Tests
-- [x] Create solution and project structure (sln, Core, Core.Tests)
-- [x] Define domain models (AppRule, AgentState, ForegroundSample, AppUsageState)
-- [x] Define interfaces (IClock, IForegroundWindowProbe, IAgentApiClient, INotificationSink, IProcessController, IStateStore)
-- [x] Define DTOs (AppConfigDto, UsageReportDto, UsagePushDto)
-- [x] Define EngineResult and command types
-- [x] Implement AgentEngine.Tick() — tracking logic (elapsed-time attribution)
-- [x] Implement notification policy (10, 5, 1 min thresholds)
-- [x] Implement enforcement logic (ForceClose on budget exhaustion)
-- [x] Implement usage batching (PushUsage command generation)
-- [x] Implement midnight reset logic
-- [x] Implement config sync handling
-- [x] Write tracking tests (8 tests)
-- [x] Write notification tests (7 tests)
-- [x] Write enforcement tests (5 tests)
-- [x] Write reset tests (5 tests)
-- [x] Write sync tests (7 tests)
-- [x] Write persistence round-trip tests (3 tests)
+## UI
+- [x] "Executable name" label and "e.g. Fortnite.exe" placeholder are misleading — the agent matches on process name (without .exe extension). Change label to "Process name" and placeholder to "e.g. notepad" or "e.g. Fortnite". See `server/static/index.html` lines 17-18.
 
-## Phase 2: HTTP Client + Persistence Adapters
-- [x] Create ScreenTimer.Agent.Windows project
-- [x] Implement AgentApiClient (HttpClient wrapper)
-- [x] Implement JsonStateStore (read/write JSON in %LocalAppData%)
-- [x] Add adapter-level tests (JSON serialization, file round-trip)
+## Agent
+- [x] Toast notifications fire even when the app is not in the foreground. Only show notifications when the tracked app is the current foreground process. The enforcement check (line 80) already gates on `currentTrackedExe` — notifications (lines 60-74) should do the same. See `client/src/ScreenTimer.Agent.Core/Engine/AgentEngine.cs`.
+- [x] Max backoff for network failures is 5 minutes — reduce to 1 minute. See `MaxBackoff` in `client/src/ScreenTimer.Agent.Host/AgentWorker.cs` line 21.
 
-## Phase 3: Windows Adapters + Background Host
-- [x] Implement Win32ForegroundWindowProbe (P/Invoke)
-- [x] Implement ToastNotificationSink (console placeholder — TODO: real toast)
-- [x] Implement WindowsProcessController (graceful close → kill)
-- [x] Create ScreenTimer.Agent.Host project with GenericHost + BackgroundService
-- [x] Implement AgentWorker (1-second tick loop)
-- [x] Wire DI and configuration (appsettings.json)
-
-## Phase 4: Fullscreen Harness
-- [x] Build ScreenTimer.FullscreenHarness
-
-## Phase 5: Integration Tests + Stabilization
-- [x] Create ScreenTimer.Agent.IntegrationTests
-- [x] Add cross-language contract smoke test
-- [x] Add retry/backoff for network failures
-- [x] Polish logging
-
-## Discovered Tasks
-- [x] Replace console ToastNotificationSink with real Windows toast notifications
-- [x] Add .gitignore for bin/obj
-- [x] Fix WindowsProcessController exe name bug (GetProcessesByName needs name without .exe extension)
-- [x] Fix WindowsProcessController to use async WaitForExitAsync instead of blocking WaitForExit
-- [x] Set Product name in Host csproj for toast notification title
-- [x] Write README with startup/packaging instructions
+## Server
+- [x] Server state is entirely in-memory — restarting the server loses all app configuration and usage data. Add file-based persistence (JSON file) so state survives restarts. See `server/internal/server/store.go`.
+- [x] After a server restart, the "used today" display only shows usage accumulated since the restart, not the full day's total. The client is the source of truth for usage but only pushes deltas. Consider having the client push total usage (not just deltas) so the server can recover, or persist server-side.
+- [x] Add "Send Test Popup" button to UI for testing toast visibility in fullscreen games. Implementation plan:
+  - Server: add `testPopupRequestedAt time.Time` to Store. New endpoint `POST /api/agent/test-popup` sets it to `time.Now()`.
+  - Change `GET /api/agent/config` response from bare array to `{"apps": [...], "test_popup_at": "..."}`.
+  - Client: add `LastTestPopupTime` to AgentState (persisted). On config poll, if `test_popup_at` parses to a time after `LastTestPopupTime`, show a toast and update `LastTestPopupTime`.
+  - Uses timestamps (not counters) for resilience across server/client restarts.
+  - Piggybacks on existing 30-second config poll — no extra HTTP calls.
+  - UI: add button in `server/static/index.html` that POSTs to `/api/agent/test-popup`.

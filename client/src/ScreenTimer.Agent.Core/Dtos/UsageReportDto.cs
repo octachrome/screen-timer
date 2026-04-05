@@ -9,4 +9,7 @@ public sealed class UsageReportDto
 
     [JsonPropertyName("seconds")]
     public int Seconds { get; set; }
+
+    [JsonPropertyName("total_seconds")]
+    public int TotalSeconds { get; set; }
 }

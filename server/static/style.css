@@ -21,6 +21,16 @@ td button {
   margin-right: 0.25rem;
 }
 
+.success-msg {
+  color: var(--pico-color-green-500, #43a047);
+  margin-left: 0.5rem;
+}
+
+.error-msg {
+  color: var(--pico-color-red-500, #e53935);
+  margin-left: 0.5rem;
+}
+
 .empty-state {
   text-align: center;
   padding: 2rem;

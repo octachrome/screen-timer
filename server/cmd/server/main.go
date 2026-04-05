@@ -16,7 +16,11 @@ import (
 )
 
 func main() {
-	store := server.NewStore()
+	dataFile := os.Getenv("DATA_FILE")
+	if dataFile == "" {
+		dataFile = "data/screen-timer.json"
+	}
+	store := server.NewStoreWithFile(dataFile)
 	router := server.NewRouter(store)
 
 	port := os.Getenv("PORT")

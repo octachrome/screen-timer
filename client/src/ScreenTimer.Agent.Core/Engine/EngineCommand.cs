@@ -11,3 +11,5 @@ public sealed record PushUsageCommand(UsagePushDto Payload) : EngineCommand;
 public sealed record ForceCloseCommand(string ExeName) : EngineCommand;
 
 public sealed record PersistStateCommand : EngineCommand;
+
+public sealed record ShowTestToastCommand : EngineCommand;

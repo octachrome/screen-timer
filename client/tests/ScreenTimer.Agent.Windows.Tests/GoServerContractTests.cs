@@ -18,6 +18,7 @@ public class GoServerContractTests : IAsyncLifetime
     private HttpClient? _rawHttp;
     private AgentApiClient? _agentClient;
     private int _port;
+    private string? _tempDataDir;
 
     private static bool IsGoAvailable()
     {
@@ -45,6 +46,9 @@ public class GoServerContractTests : IAsyncLifetime
             return;
 
         _port = FindFreePort();
+        _tempDataDir = Path.Combine(Path.GetTempPath(), "screen-timer-test-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_tempDataDir);
+        var dataFile = Path.Combine(_tempDataDir, "data.json");
 
         var serverDir = Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory, "..", "..", "..", "..", "..", "..", "server"));
@@ -60,7 +64,7 @@ public class GoServerContractTests : IAsyncLifetime
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true,
-                Environment = { ["PORT"] = _port.ToString() }
+                Environment = { ["PORT"] = _port.ToString(), ["DATA_FILE"] = dataFile }
             }
         };
 
@@ -86,6 +90,10 @@ public class GoServerContractTests : IAsyncLifetime
         }
         _serverProcess?.Dispose();
         _rawHttp?.Dispose();
+        if (_tempDataDir is not null && Directory.Exists(_tempDataDir))
+        {
+            try { Directory.Delete(_tempDataDir, recursive: true); } catch { }
+        }
         return Task.CompletedTask;
     }
 
@@ -98,11 +106,11 @@ public class GoServerContractTests : IAsyncLifetime
         await _rawHttp!.PostAsJsonAsync("/api/apps", new { exe_name = "game.exe", daily_budget_minutes = 60 });
 
         // Call agent config endpoint via C# client
-        var configs = await _agentClient!.GetConfigAsync();
+        var configResponse = await _agentClient!.GetConfigAsync();
 
-        Assert.Single(configs);
-        Assert.Equal("game.exe", configs[0].ExeName);
-        Assert.Equal(60, configs[0].DailyBudgetMinutes);
+        Assert.Single(configResponse.Apps);
+        Assert.Equal("game.exe", configResponse.Apps[0].ExeName);
+        Assert.Equal(60, configResponse.Apps[0].DailyBudgetMinutes);
     }
 
     [Fact]
@@ -137,9 +145,9 @@ public class GoServerContractTests : IAsyncLifetime
     {
         if (!IsGoAvailable()) return;
 
-        var configs = await _agentClient!.GetConfigAsync();
+        var configResponse = await _agentClient!.GetConfigAsync();
 
-        Assert.Empty(configs);
+        Assert.Empty(configResponse.Apps);
     }
 
     private async Task WaitForServerReady()

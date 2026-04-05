@@ -18,7 +18,7 @@ public sealed class AgentWorker : BackgroundService
 
     private readonly TimeSpan _tickInterval = TimeSpan.FromSeconds(1);
     private readonly TimeSpan _configPollInterval = TimeSpan.FromSeconds(30);
-    private static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(1);
 
     private AgentState _state = new();
     private int _configFailures;
@@ -84,17 +84,20 @@ public sealed class AgentWorker : BackgroundService
 
         // Poll config if due (with backoff on failures)
         List<AppRule>? newRules = null;
+        DateTimeOffset? testPopupAt = null;
         var configInterval = GetBackoffInterval(_configPollInterval, _configFailures);
         if ((now - _state.LastConfigPollTime).TotalSeconds >= configInterval.TotalSeconds)
         {
             try
             {
-                var configs = await _apiClient.GetConfigAsync(ct);
-                newRules = configs.Select(c => new AppRule
+                var configResponse = await _apiClient.GetConfigAsync(ct);
+                newRules = configResponse.Apps.Select(c => new AppRule
                 {
                     ExeName = c.ExeName,
                     DailyBudgetMinutes = c.DailyBudgetMinutes
                 }).ToList();
+                if (DateTimeOffset.TryParse(configResponse.TestPopupAt, out var parsed))
+                    testPopupAt = parsed;
                 _configFailures = 0;
                 _logger.LogDebug("Config polled: {Count} app(s)", newRules.Count);
             }
@@ -107,7 +110,7 @@ public sealed class AgentWorker : BackgroundService
             }
         }
 
-        var result = AgentEngine.Tick(_state, sample, newRules);
+        var result = AgentEngine.Tick(_state, sample, newRules, testPopupAt);
         _state = result.UpdatedState;
 
         foreach (var command in result.Commands)
@@ -163,6 +166,11 @@ public sealed class AgentWorker : BackgroundService
                 {
                     _logger.LogError(ex, "Failed to persist state");
                 }
+                break;
+
+            case ShowTestToastCommand:
+                _logger.LogInformation("Test popup requested");
+                _notifications.ShowToast("Test", 0);
                 break;
         }
     }

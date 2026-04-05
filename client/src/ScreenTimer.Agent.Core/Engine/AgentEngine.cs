@@ -8,7 +8,7 @@ public static class AgentEngine
     private static readonly TimeSpan UsageFlushInterval = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan ConfigPollInterval = TimeSpan.FromSeconds(30);
 
-    public static EngineResult Tick(AgentState state, ForegroundSample sample, List<AppRule>? newRules)
+    public static EngineResult Tick(AgentState state, ForegroundSample sample, List<AppRule>? newRules, DateTimeOffset? testPopupAt = null)
     {
         var commands = new List<EngineCommand>();
         var now = sample.Timestamp;
@@ -25,6 +25,13 @@ public static class AgentEngine
         {
             ApplyConfigRules(state, newRules);
             state.LastConfigPollTime = now;
+        }
+
+        // Test popup
+        if (testPopupAt.HasValue && (state.LastTestPopupTime == null || testPopupAt.Value > state.LastTestPopupTime.Value))
+        {
+            state.LastTestPopupTime = testPopupAt.Value;
+            commands.Add(new ShowTestToastCommand());
         }
 
         // Track elapsed time attributed to the *previous* foreground exe
@@ -56,21 +63,24 @@ public static class AgentEngine
             var budgetSeconds = rule.DailyBudgetMinutes * 60.0;
             var remainingSeconds = budgetSeconds - appState.UsedTodaySeconds;
 
-            // Notification thresholds (fire only once each)
-            if (!appState.Sent10Min && remainingSeconds <= 600 && remainingSeconds > 0)
+            // Notification thresholds (fire only once each, only for current foreground app)
+            if (string.Equals(currentTrackedExe, rule.ExeName, StringComparison.OrdinalIgnoreCase))
             {
-                appState.Sent10Min = true;
-                commands.Add(new ShowToastCommand(rule.ExeName, 10));
-            }
-            if (!appState.Sent5Min && remainingSeconds <= 300 && remainingSeconds > 0)
-            {
-                appState.Sent5Min = true;
-                commands.Add(new ShowToastCommand(rule.ExeName, 5));
-            }
-            if (!appState.Sent1Min && remainingSeconds <= 60 && remainingSeconds > 0)
-            {
-                appState.Sent1Min = true;
-                commands.Add(new ShowToastCommand(rule.ExeName, 1));
+                if (!appState.Sent10Min && remainingSeconds <= 600 && remainingSeconds > 0)
+                {
+                    appState.Sent10Min = true;
+                    commands.Add(new ShowToastCommand(rule.ExeName, 10));
+                }
+                if (!appState.Sent5Min && remainingSeconds <= 300 && remainingSeconds > 0)
+                {
+                    appState.Sent5Min = true;
+                    commands.Add(new ShowToastCommand(rule.ExeName, 5));
+                }
+                if (!appState.Sent1Min && remainingSeconds <= 60 && remainingSeconds > 0)
+                {
+                    appState.Sent1Min = true;
+                    commands.Add(new ShowToastCommand(rule.ExeName, 1));
+                }
             }
 
             // Enforcement: force-close when budget exhausted and app is in foreground
@@ -171,7 +181,7 @@ public static class AgentEngine
             var seconds = (int)appState.PendingUploadSeconds;
             if (seconds > 0)
             {
-                reports.Add(new UsageReportDto { ExeName = exeName, Seconds = seconds });
+                reports.Add(new UsageReportDto { ExeName = exeName, Seconds = seconds, TotalSeconds = (int)appState.UsedTodaySeconds });
             }
         }
         return reports;
