@@ -204,15 +204,24 @@ func (s *Store) ListGroups() []*Group {
 	return result
 }
 
-// UpdateGroup changes the daily budget and process list for an existing group.
-// Returns an error if the group is not found (→ 404 in the API).
-func (s *Store) UpdateGroup(name string, budget time.Duration, processes []string) (*Group, error) {
+// UpdateGroup changes the name, daily budget and process list for an existing group.
+// If newName differs from name, the group is renamed. Returns an error if the
+// group is not found (→ 404) or if newName already exists (→ 409).
+func (s *Store) UpdateGroup(name string, newName string, budget time.Duration, processes []string) (*Group, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	g, ok := s.groups[name]
 	if !ok {
 		return nil, fmt.Errorf("group not found: %s", name)
+	}
+	if newName != "" && newName != name {
+		if _, exists := s.groups[newName]; exists {
+			return nil, fmt.Errorf("group already exists: %s", newName)
+		}
+		delete(s.groups, name)
+		g.Name = newName
+		s.groups[newName] = g
 	}
 	g.DailyBudget = budget
 	g.Processes = processes

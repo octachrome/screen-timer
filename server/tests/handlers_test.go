@@ -168,6 +168,53 @@ func TestPutAppsValid(t *testing.T) {
 	}
 }
 
+func TestPutAppsRename(t *testing.T) {
+	store, router := setupRouter()
+	addGroup(t, store, "Fortnite.exe", "Fortnite.exe", 60)
+
+	body := jsonBody(t, server.UpdateGroupRequest{Name: "Games", DailyBudgetMinutes: 60, Processes: []string{"Fortnite.exe"}})
+	req := httptest.NewRequest(http.MethodPut, "/api/apps/Fortnite.exe", body)
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var resp server.UsageSummary
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp.Name != "Games" {
+		t.Errorf("expected name Games, got %s", resp.Name)
+	}
+
+	// Old name should no longer exist
+	_, err := store.GetGroup("Fortnite.exe")
+	if err == nil {
+		t.Error("expected old group name to be gone")
+	}
+}
+
+func TestPutAppsRenameConflict(t *testing.T) {
+	store, router := setupRouter()
+	addGroup(t, store, "Fortnite.exe", "Fortnite.exe", 60)
+	addGroup(t, store, "Games", "Minecraft.exe", 120)
+
+	body := jsonBody(t, server.UpdateGroupRequest{Name: "Games", DailyBudgetMinutes: 60, Processes: []string{"Fortnite.exe"}})
+	req := httptest.NewRequest(http.MethodPut, "/api/apps/Fortnite.exe", body)
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusConflict {
+		t.Fatalf("expected status 409, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
 func TestPutAppsNotFound(t *testing.T) {
 	_, router := setupRouter()
 

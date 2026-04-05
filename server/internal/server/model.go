@@ -54,6 +54,7 @@ type AddGroupRequest struct {
 
 // UpdateGroupRequest is the request body for PUT /api/groups/{name}.
 type UpdateGroupRequest struct {
+	Name               string   `json:"name"`
 	DailyBudgetMinutes int      `json:"daily_budget_minutes"`
 	Processes          []string `json:"processes"`
 }

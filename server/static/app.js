@@ -91,7 +91,7 @@ function renderTable(summaries) {
     const editBtn = document.createElement('button');
     editBtn.textContent = 'Edit';
     editBtn.addEventListener('click', () => {
-      startEdit(tdBudget, tdProcesses, row.name, row.daily_budget_minutes, row.processes);
+      startEdit(tdName, tdBudget, tdProcesses, row.name, row.daily_budget_minutes, row.processes);
     });
 
     const deleteBtn = document.createElement('button');
@@ -169,14 +169,20 @@ async function deleteApp(exeName) {
 // ---------------------------------------------------------------------------
 
 /**
- * Replace the budget and processes cells with inputs + Save/Cancel buttons
- * so the user can edit inline without leaving the page.
- * On save: sends PUT /api/apps/{name} with the new budget and processes.
+ * Replace the name, budget and processes cells with inputs + Save/Cancel
+ * buttons so the user can edit inline without leaving the page.
+ * On save: sends PUT /api/apps/{name} with the new name, budget and processes.
  * On cancel: simply re-renders the table to restore the original cells.
  */
-function startEdit(budgetCell, processesCell, groupName, currentBudget, currentProcesses) {
+function startEdit(nameCell, budgetCell, processesCell, groupName, currentBudget, currentProcesses) {
+  nameCell.innerHTML = '';
   budgetCell.innerHTML = '';
   processesCell.innerHTML = '';
+
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.value = groupName;
+  nameCell.appendChild(nameInput);
 
   const budgetInput = document.createElement('input');
   budgetInput.type = 'number';
@@ -186,6 +192,7 @@ function startEdit(budgetCell, processesCell, groupName, currentBudget, currentP
 
   const processesInput = document.createElement('input');
   processesInput.type = 'text';
+  processesInput.placeholder = 'e.g. Fortnite, Minecraft';
   processesInput.value = currentProcesses.join(', ');
   processesCell.appendChild(processesInput);
 
@@ -196,7 +203,7 @@ function startEdit(budgetCell, processesCell, groupName, currentBudget, currentP
     await fetch(`/api/apps/${encodeURIComponent(groupName)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ daily_budget_minutes: parseInt(budgetInput.value, 10), processes }),
+      body: JSON.stringify({ name: nameInput.value.trim(), daily_budget_minutes: parseInt(budgetInput.value, 10), processes }),
     });
     await refreshData();
   });

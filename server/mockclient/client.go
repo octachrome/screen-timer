@@ -48,6 +48,7 @@ type AddGroupRequest struct {
 
 // UpdateGroupRequest mirrors the server's UpdateGroupRequest.
 type UpdateGroupRequest struct {
+	Name               string   `json:"name"`
 	DailyBudgetMinutes int      `json:"daily_budget_minutes"`
 	Processes          []string `json:"processes"`
 }

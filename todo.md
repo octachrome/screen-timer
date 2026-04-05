@@ -21,7 +21,15 @@
 ## Data Fetching
 - [x] 11. Verify `fetchUsage()` works with new response shape (name, processes fields)
 
+## Group Rename
+- [x] 15. Add `name` field to `UpdateGroupRequest` on server
+- [x] 16. Implement rename logic in `store.UpdateGroup` (with conflict detection)
+- [x] 17. Make name cell editable in `startEdit()`
+- [x] 18. Add placeholder text to processes input (`e.g. Fortnite, Minecraft`)
+
 ## Tests
 - [x] 12. Add integration test: POST /api/apps with name+process payload, verify response has `name` and `processes` fields
 - [x] 13. Add integration test: PUT /api/apps/{name} with processes list, verify processes are updated
 - [x] 14. Add integration test: full round-trip — add group, edit processes, verify usage shows updated process list
+- [x] 19. Add handler test: PUT rename returns new name, old name gone
+- [x] 20. Add handler test: PUT rename conflict returns 409

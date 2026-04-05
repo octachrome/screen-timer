@@ -9,6 +9,7 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -120,9 +121,17 @@ func handleUpdateApp(store *Store) http.HandlerFunc {
 			return
 		}
 		budget := time.Duration(req.DailyBudgetMinutes) * time.Minute
-		group, err := store.UpdateGroup(name, budget, req.Processes)
+		newName := req.Name
+		if newName == "" {
+			newName = name
+		}
+		group, err := store.UpdateGroup(name, newName, budget, req.Processes)
 		if err != nil {
-			writeError(w, http.StatusNotFound, err.Error())
+			if strings.HasPrefix(err.Error(), "group already exists") {
+				writeError(w, http.StatusConflict, err.Error())
+			} else {
+				writeError(w, http.StatusNotFound, err.Error())
+			}
 			return
 		}
 		summary := group.ToUsageSummary()

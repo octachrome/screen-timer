@@ -79,7 +79,7 @@ func TestUpdateGroup(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	g, err := s.UpdateGroup("slack", 90*time.Minute, []string{"slack"})
+	g, err := s.UpdateGroup("slack", "slack", 90*time.Minute, []string{"slack"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -92,7 +92,7 @@ func TestUpdateGroup(t *testing.T) {
 		t.Errorf("GetGroup after update: DailyBudget = %v, want %v", got.DailyBudget, 90*time.Minute)
 	}
 
-	_, err = s.UpdateGroup("unknown", 10*time.Minute, []string{"unknown"})
+	_, err = s.UpdateGroup("unknown", "unknown", 10*time.Minute, []string{"unknown"})
 	if err == nil {
 		t.Fatal("expected error for unknown group, got nil")
 	}
@@ -356,7 +356,7 @@ func TestGroupWithMultipleProcesses(t *testing.T) {
 	}
 
 	// Update to have multiple processes
-	_, err = s.UpdateGroup("browsers", 60*time.Minute, []string{"chrome.exe", "firefox.exe", "edge.exe"})
+	_, err = s.UpdateGroup("browsers", "browsers", 60*time.Minute, []string{"chrome.exe", "firefox.exe", "edge.exe"})
 	if err != nil {
 		t.Fatalf("unexpected error on update: %v", err)
 	}
