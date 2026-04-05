@@ -12,8 +12,16 @@ A Windows background agent that tracks time spent in configured applications (by
 
 ```
 cd client
-dotnet build
+dotnet publish src/ScreenTimer.Agent.Host -o build
 ```
+
+This publishes the agent and all its dependencies — including `appsettings.json` — into the `build/` folder. The entire folder is self-contained and can be copied to another machine without the source tree. To run the built agent:
+
+```
+build\ScreenTimer.Agent.Host.exe
+```
+
+The agent loads `appsettings.json` from the same directory as the executable, so edit the copy in `build/` (or on the target machine) to change configuration.
 
 ## Running Tests
 
@@ -41,7 +49,7 @@ dotnet run --project src/ScreenTimer.Agent.Host -- --ServerUrl http://192.168.1.
 
 ## Configuration
 
-Configuration lives in `src/ScreenTimer.Agent.Host/appsettings.json`:
+Configuration lives in `appsettings.json` next to the executable (source default: `src/ScreenTimer.Agent.Host/appsettings.json`):
 
 | Setting     | Default                  | Description                          |
 |-------------|--------------------------|--------------------------------------|
@@ -57,7 +65,7 @@ The agent uses the following fixed intervals:
 | Config poll         | 30 s  | How often app rules are fetched from the server  |
 | Usage push          | 15 s  | How often accumulated usage is pushed to the server |
 
-Config poll and usage push use exponential backoff (up to 5 minutes) on repeated failures.
+Config poll and usage push use exponential backoff (up to 1 minute) on repeated failures.
 
 ## How It Works
 
