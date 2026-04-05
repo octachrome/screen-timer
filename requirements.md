@@ -15,7 +15,7 @@ A screen time management system for Windows, allowing a parent (manager) to set 
 
 ### F1: Application Time Tracking
 
-- The Windows agent tracks time spent in specific applications, identified by executable name (e.g., `Fortnite.exe`).
+- The Windows agent tracks time spent in specific applications, identified by process name (e.g., `Fortnite`).
 - Time is only tracked while the application window is **in focus** (foreground).
 - Usage data is recorded per-application, per-day.
 - Historical usage data is exported/stored as a **CSV file** (no UI required for history).
@@ -23,8 +23,8 @@ A screen time management system for Windows, allowing a parent (manager) to set 
 ### F2: Daily Time Budgets
 
 - Budgets can be set at three levels, from most specific to least:
-  1. **Per-application** — a budget for an individual application (e.g., `Fortnite.exe`).
-  2. **Per-group** — a budget for a named group of applications (e.g., a "Games" group containing `Fortnite.exe` and `Minecraft.exe`). An application can belong to multiple groups.
+  1. **Per-application** — a budget for an individual application (e.g., `Fortnite`).
+  2. **Per-group** — a budget for a named group of applications (e.g., a "Games" group containing `Fortnite` and `Minecraft`). An application can belong to multiple groups.
   3. **"All" group** — a built-in group that always exists and covers all tracked applications, setting an overall daily screen time budget.
 - When multiple budgets apply to an application, **all** of them are enforced independently. For example, if "Games" has a 2-hour budget and "All" has a 4-hour budget, a game is blocked when *either* budget is exhausted.
 - **Separate default budgets** can be configured for **weekdays** (Mon–Fri) and **weekends** (Sat–Sun) at each level (application, group, and "All").

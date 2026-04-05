@@ -1,113 +1,165 @@
-# Screen Timer — Post-MVP Plan
+# Screen Timer — Plan: Consolidate Processes into Groups
 
-What's built: per-app tracking, single daily budgets, force-close enforcement, toast notifications, basic web UI, file-based persistence. See `mvp.md` for details.
+## Goal
 
-What remains: application groups, weekday/weekend budgets, ad-hoc extensions, fullscreen-aware notifications, persistent overlay experimentation, historical CSV export, and auto-start on boot.
+Replace the current flat "tracked application" model with a **group-centric** model. Every tracked item becomes a **group** with a name, a budget, and one or more member processes. The "Add Application" form stays the same (enter a process name + budget, click Add) but under the hood creates a single-member group named after the process. The Edit button expands to let the user add more processes to the group. The client/agent becomes group-aware so notifications say *"Gaming: 1 minute remaining"* instead of *"Fortnite: 1 minute(s) remaining"*.
 
 ---
 
-## Phase 1 — Application Groups & the "All" Group
+## Phase 1 — Server: data model & persistence
 
-Add the concept of named application groups to both server and client.
+### Model changes (`model.go`)
 
-**Server:**
-- New data model: `Group` with a name, a list of member exe names, and its own daily budget.
-- A built-in "All" group that implicitly contains every tracked application.
-- CRUD API for groups: `POST/GET/PUT/DELETE /api/groups`.
-- Assign/remove applications to groups.
-- Extend usage tracking to compute per-group usage (sum of member usage).
-- Usage summary endpoint returns both per-app and per-group data.
+- Replace `Application` with a `Group` struct:
+  ```go
+  type Group struct {
+      Name          string
+      Processes     []string       // process names
+      DailyBudget   time.Duration
+      UsedToday     time.Duration
+      LastResetDate string
+  }
+  ```
+- Update `UsageSummary` to include group name and member list:
+  ```go
+  type UsageSummary struct {
+      Name               string   `json:"name"`
+      Processes          []string `json:"processes"`
+      DailyBudgetMinutes int      `json:"daily_budget_minutes"`
+      UsedTodayMinutes   int      `json:"used_today_minutes"`
+      RemainingMinutes   int      `json:"remaining_minutes"`
+  }
+  ```
+- Update `AddAppRequest` → `AddGroupRequest`: fields `name`, `process` (single exe), `daily_budget_minutes`.
+- Add `UpdateGroupRequest` with fields for budget and process list.
+- Update `AgentConfigResponse` to include groups:
+  ```go
+  type GroupConfig struct {
+      Name               string   `json:"name"`
+      Processes          []string `json:"processes"`
+      DailyBudgetMinutes int      `json:"daily_budget_minutes"`
+  }
+  type AgentConfigResponse struct {
+      Groups      []GroupConfig `json:"groups"`
+      TestPopupAt string        `json:"test_popup_at,omitempty"`
+  }
+  ```
 
-**Client (agent):**
-- Config response includes group definitions and budgets alongside app budgets.
-- Engine enforces all applicable budgets independently: if an app belongs to groups "Games" and "All", it's blocked when *any* of its budgets (app, Games, or All) is exhausted.
-- Notification thresholds fire per-budget (the child gets the most urgent notification across all applicable budgets).
+### Store changes (`store.go`)
 
-**UI:**
-- Create/edit/delete groups.
-- Assign applications to groups.
-- View per-group usage alongside per-app usage.
+- Change internal map: `apps map[string]*Application` → `groups map[string]*Group` (keyed by group name).
+- Update persistence structs (`persistedData`, `persistedGroup`) to include the process list.
+- Update `save()`/`load()` to serialise the new shape.
+- **Migration**: when loading an old-format JSON file (with `"apps"` key), convert each app into a single-process group with `name = exeName`.
+- Rename store methods:
+  - `AddApp()` → `AddGroup(name, process, budget)` — creates a group with one process; error if name already exists.
+  - `UpdateBudget()` → `UpdateGroup(name, budget, processes)` — updates budget and/or process list.
+  - `DeleteApp()` → `DeleteGroup(name)`.
+  - `ListApps()` → `ListGroups()`.
+  - `GetUsageSummary()` — returns `[]UsageSummary` with group-level data.
+- `RecordUsage(exeName, seconds, totalSeconds)` — stays process-based (agent reports per-exe). The store looks up **all groups containing that exe** and adds usage to each.
 
-## Phase 2 — Weekday / Weekend Budgets
+### Handler changes (`handlers.go`)
 
-Replace the single daily budget with separate weekday (Mon–Fri) and weekend (Sat–Sun) defaults, at every budget level (per-app, per-group, and "All").
+- `POST /api/apps` — accept `AddGroupRequest`; call `store.AddGroup()`.
+- `PUT /api/apps/{name}` — accept `UpdateGroupRequest`; call `store.UpdateGroup()`.
+- `DELETE /api/apps/{name}` — call `store.DeleteGroup()`.
+- `GET /api/usage/today` — return group-level summaries.
+- `GET /api/agent/config` — return `GroupConfig` list so the agent knows group names and which processes belong to which groups.
+- Keep URL paths as `/api/apps` to avoid frontend URL changes (or rename to `/api/groups` and update frontend — either works; keeping `/api/apps` is simpler).
 
-**Server:**
-- Model change: replace `DailyBudget` with `WeekdayBudget` and `WeekendBudget` on both `Application` and `Group`.
-- Agent config endpoint returns both budgets; the agent picks the correct one based on the current day of week.
-- UI API and usage summary include both budget values.
+### Server tests
 
-**Client:**
-- Engine selects the active budget (weekday or weekend) based on the local date.
+- Update `store_test.go` and `handlers_test.go` to exercise the new group-based methods.
 
-**UI:**
-- Budget inputs become two fields (weekday / weekend) everywhere budgets are set.
+---
 
-## Phase 3 — Ad-Hoc Daily Budget Extensions
+## Phase 2 — Web UI changes (`app.js`, `index.html`)
 
-Let the manager extend today's budget for any application, group, or "All" without changing the default.
+### Add form (unchanged UX, different payload)
 
-**Server:**
-- New field: `ExtensionMinutes` per app/group (resets daily).
-- API endpoint: `POST /api/apps/{exe}/extend`, `POST /api/groups/{name}/extend` with `{ "extra_minutes": 30 }`.
-- Effective budget = default budget (weekday/weekend) + extension for today.
+- The form still has "Process name" + "Daily budget" + Add button.
+- On submit, POST to `/api/apps` with `{ "name": "<process>", "process": "<process>", "daily_budget_minutes": N }`. (The group name defaults to the process name.)
 
-**Client:**
-- Config response includes extensions; engine uses effective budget.
+### Tracked Applications table
 
-**UI:**
-- "+30 min" / custom extension button on each app/group row.
+- Rename column "Process" → "Name".
+- Add a "Processes" column showing the comma-separated list of member exe names.
+- Edit button opens an inline editor that shows:
+  - Budget (number input, as today).
+  - Process list (comma-separated text input or a small editable list).
+  - Save sends `PUT /api/apps/{name}` with `{ "daily_budget_minutes": N, "processes": ["a.exe", "b.exe"] }`.
 
-## Phase 4 — Fullscreen-Aware Notifications
+### Rendering
 
-Replace or supplement standard Windows toast notifications with a notification mechanism that is visible over fullscreen games and does not steal keyboard focus.
+- `renderTable()` reads `name` and `processes` from the new summary shape.
+- `startEdit()` adds a processes text field alongside the budget input.
 
-**Investigation (do first):**
-- Test standard toasts with the fullscreen harness (`ScreenTimer.FullscreenHarness`) in borderless and exclusive fullscreen modes.
-- If toasts work in borderless fullscreen (which most modern games use), document that and consider MVP-complete for common cases.
+---
 
-**Implementation (if toasts fail in target scenarios):**
-- Build a topmost transparent overlay window (WPF or WinForms) that renders above fullscreen content.
-- The overlay shows the notification text for a few seconds then fades.
-- Use `WS_EX_NOACTIVATE` / `WS_EX_TRANSPARENT` to prevent focus stealing.
-- Swap `INotificationSink` implementation — core engine unchanged.
+## Phase 3 — Client/agent: group-aware config & notifications
 
-## Phase 5 — Persistent Time-Remaining Overlay
+### DTO changes
 
-Experiment with a persistent on-screen widget that shows remaining time for the currently focused tracked application (requirement F6).
+- `AgentConfigResponseDto` gains a `Groups` list (replacing or alongside `Apps`).
+  ```csharp
+  public sealed class GroupConfigDto
+  {
+      [JsonPropertyName("name")]
+      public string Name { get; set; } = "";
+      [JsonPropertyName("processes")]
+      public List<string> Processes { get; set; } = new();
+      [JsonPropertyName("daily_budget_minutes")]
+      public int DailyBudgetMinutes { get; set; }
+  }
+  ```
+- `AgentConfigResponseDto.Apps` → `AgentConfigResponseDto.Groups`.
 
-**Experiment:**
-- Build a small always-on-top, click-through overlay window (e.g., a corner HUD showing "Fortnite: 42 min left").
-- Test visibility across windowed, borderless fullscreen, and exclusive fullscreen modes.
-- Measure whether it causes input lag, stutter, or focus issues.
+### Model changes
 
-**If viable:** ship it as the default display, controlled by a setting.
-**If not viable:** document findings; rely on pop-up notifications only (Phase 4).
+- `AppRule` → `GroupRule`: `Name`, `Processes` (list), `DailyBudgetMinutes`.
+- `AgentState.Apps` (per-exe usage) stays as-is — usage is still tracked per-exe.
+- Add `AgentState.GroupUsage`: `Dictionary<string, GroupUsageState>` keyed by group name, tracking notification flags and exhaustion per group.
+  ```csharp
+  public sealed class GroupUsageState
+  {
+      public bool Sent10Min { get; set; }
+      public bool Sent5Min { get; set; }
+      public bool Sent1Min { get; set; }
+      public bool Exhausted { get; set; }
+  }
+  ```
 
-## Phase 6 — Historical Usage & CSV Export
+### Engine changes (`AgentEngine.cs`)
 
-Record daily usage history and allow export.
+- **Usage attribution** (unchanged): attribute elapsed seconds to the per-exe `AppUsageState` as today.
+- **Budget checking**: iterate `CurrentRules` (now `List<GroupRule>`). For each group, sum `UsedTodaySeconds` across all member processes. Compare against the group budget.
+- **Notifications**: fire `ShowToastCommand(groupName, remainingMinutes)` — using the **group name** so the toast reads *"1 minute remaining for Gaming"*.
+- **Enforcement**: if a group's budget is exhausted and the current foreground exe is a member of that group, emit `ForceCloseCommand(currentExe)`.
 
-**Server:**
-- Store daily usage history (per-app, per-group) — append a summary at end-of-day or on each usage push.
-- Storage: append to a CSV file or a JSON-lines file, one row per app per day.
-- New endpoint: `GET /api/usage/history?days=30` — returns historical data.
-- New endpoint: `GET /api/usage/export` — returns CSV download.
+### Notification sink
 
-**UI (optional):**
-- No UI required per the requirements, but a "Download CSV" button would be simple to add.
+- `ShowToast(string label, int remainingMinutes)` — change the message from `"{exeName}: {n} minute(s) remaining"` to `"{n} minute(s) remaining for {label}"`. The `label` is now the group name.
 
-## Phase 7 — Auto-Start on Boot & Polish
+### Worker (`AgentWorker.cs`)
 
-Make the agent start automatically and apply final polish.
+- Config poll: map `GroupConfigDto` list → `List<GroupRule>`.
+- Ensure per-exe `AppUsageState` entries are created for every exe mentioned in any group.
 
-**Auto-start:**
-- Register the agent with Windows Task Scheduler (run at logon, non-elevated).
-- Alternatively, add a registry entry under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
-- Make this configurable (an installer step, or a `--install` / `--uninstall` CLI flag on the agent).
+### Client tests
 
-**Polish:**
-- Structured logging review (ensure all key events are logged).
-- Error handling for edge cases (agent crash recovery, stale state files).
-- Configuration: make server URL, poll intervals, notification thresholds configurable via `appsettings.json`.
-- README / user-facing documentation for setup and usage.
+- Update `NotificationTests`, `EnforcementTests`, etc. to use group rules.
+- Add test: two exes in one group, usage from both counts toward the shared budget.
+- Add test: notification message uses group name.
+
+---
+
+## Migration / backwards compatibility
+
+- **Server persistence**: `load()` expects the new groups format. Old-format JSON files (with the `"apps"` key) are ignored and will be overwritten on the next save.
+- **Agent config**: the server always returns the new `groups` format. Old agents that only understand `apps` will see an empty app list and stop enforcing — acceptable since both are deployed together.
+
+## Out of scope
+
+- The built-in "All" group (separate feature, can be added later).
+- Weekday/weekend budgets, ad-hoc extensions (later phases from the old plan).

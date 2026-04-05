@@ -15,7 +15,7 @@
 ```go
 // Application represents a tracked application with its budget and today's usage.
 type Application struct {
-    ExeName       string        // e.g. "Fortnite.exe" — unique identifier
+    ExeName       string        // e.g. "Fortnite" — unique identifier
     DailyBudget   time.Duration // e.g. 2h
     UsedToday     time.Duration // accumulated usage pushed by agent
     LastResetDate string        // "2006-01-02"; usage resets when date changes

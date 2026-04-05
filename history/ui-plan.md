@@ -26,7 +26,7 @@ Single page with two sections:
 ### Section 1: "Add Application"
 
 A form with two inputs and a submit button:
-- **Executable name** — text input (e.g., `Fortnite.exe`)
+- **Process name** — text input (e.g., `Fortnite`)
 - **Daily budget (minutes)** — number input
 - **Add** button
 
@@ -38,7 +38,7 @@ A table (or card list) showing all tracked apps. Each row displays:
 
 | Column | Source |
 |--------|--------|
-| Executable name | `exe_name` |
+| Process name | `exe_name` |
 | Budget | `daily_budget_minutes` min |
 | Used today | `used_today_minutes` min |
 | Remaining | `remaining_minutes` min (highlight red when ≤ 0) |
