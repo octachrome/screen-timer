@@ -22,9 +22,13 @@ A screen time management system for Windows, allowing a parent (manager) to set 
 
 ### F2: Daily Time Budgets
 
-- Each tracked application has a daily time budget (e.g., 2 hours).
-- **Separate default budgets** can be configured for **weekdays** (Mon–Fri) and **weekends** (Sat–Sun).
-- The manager can **extend the budget for the current day** on an ad-hoc basis (e.g., add 30 minutes today only), without changing the default.
+- Budgets can be set at three levels, from most specific to least:
+  1. **Per-application** — a budget for an individual application (e.g., `Fortnite.exe`).
+  2. **Per-group** — a budget for a named group of applications (e.g., a "Games" group containing `Fortnite.exe` and `Minecraft.exe`). An application can belong to multiple groups.
+  3. **"All" group** — a built-in group that always exists and covers all tracked applications, setting an overall daily screen time budget.
+- When multiple budgets apply to an application, **all** of them are enforced independently. For example, if "Games" has a 2-hour budget and "All" has a 4-hour budget, a game is blocked when *either* budget is exhausted.
+- **Separate default budgets** can be configured for **weekdays** (Mon–Fri) and **weekends** (Sat–Sun) at each level (application, group, and "All").
+- The manager can **extend the budget for the current day** on an ad-hoc basis (e.g., add 30 minutes today only) for any application, group, or "All", without changing the default.
 
 ### F3: Manager Web Interface
 
@@ -32,9 +36,10 @@ A screen time management system for Windows, allowing a parent (manager) to set 
 - **No authentication** required.
 - The manager can:
   - **Add/remove tracked applications** (by executable name).
-  - **Configure weekday and weekend default budgets** per application.
-  - **Extend the current day's budget** for any application.
-  - **View today's usage** per application (time used vs. budget remaining).
+  - **Create/edit/delete groups** of applications (assign applications to named groups).
+  - **Configure weekday and weekend default budgets** per application, per group, and for the "All" group.
+  - **Extend the current day's budget** for any application, group, or "All".
+  - **View today's usage** per application and per group (time used vs. budget remaining).
 
 ### F4: Child Notifications
 

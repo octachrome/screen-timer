@@ -6,9 +6,11 @@ There are two types of user: the manager (me) and the child (my son).
 Requirements for the manager:
 - I can set limits per-application, so that he can spend limited time
   on games but unlimited time on other hobbies
+- I can set define application groups, such as "games", and set limits on those groups
 - I can set these limits remotely, e.g., using a website
-- I can monitor (also remotely) how much time he has spent on each application
+- I can monitor (also remotely) how much time he has spent on each application and each group
   each day
+- A group "all" is always defined, which includes all applications
 
 Requirements for the child:
 - He can easily see how much time is left
