@@ -15,8 +15,10 @@ public sealed class WindowsProcessController : IProcessController
 
     public async Task ForceCloseAsync(string exeName)
     {
-        // Process.GetProcessesByName expects the name without extension
-        var processName = Path.GetFileNameWithoutExtension(exeName);
+        // Process.GetProcessesByName expects the name without .exe extension
+        var processName = exeName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+            ? exeName[..^4]
+            : exeName;
         var processes = Process.GetProcessesByName(processName);
 
         if (processes.Length == 0)
