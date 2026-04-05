@@ -10,19 +10,33 @@ import (
 	"time"
 )
 
-// Store is the in-memory data store for tracked applications and their usage.
+// Store is the in-memory data store for tracked groups and their usage.
 // All methods are safe for concurrent access; reads use an RWMutex so
 // multiple readers can proceed in parallel.
 // When created with NewStoreWithFile, mutations are persisted to a JSON file.
 type Store struct {
 	mu                   sync.RWMutex
-	apps                 map[string]*Application // keyed by ExeName
-	filePath             string                  // empty means no persistence
+	groups               map[string]*Group // keyed by group Name
+	filePath             string            // empty means no persistence
 	clock                func() time.Time
 	testPopupRequestedAt time.Time
 }
 
-// persistedApp is the JSON-serialisable representation of an Application.
+// persistedGroup is the JSON-serialisable representation of a Group.
+type persistedGroup struct {
+	Name          string   `json:"name"`
+	Processes     []string `json:"processes"`
+	DailyBudget   int64    `json:"daily_budget_ns"`
+	UsedToday     int64    `json:"used_today_ns"`
+	LastResetDate string   `json:"last_reset_date"`
+}
+
+// persistedData is the top-level structure written to the JSON file.
+type persistedData struct {
+	Groups map[string]persistedGroup `json:"groups"`
+}
+
+// persistedApp is the old JSON format for migration purposes.
 type persistedApp struct {
 	ExeName       string `json:"exe_name"`
 	DailyBudget   int64  `json:"daily_budget_ns"`
@@ -30,16 +44,11 @@ type persistedApp struct {
 	LastResetDate string `json:"last_reset_date"`
 }
 
-// persistedData is the top-level structure written to the JSON file.
-type persistedData struct {
-	Apps map[string]persistedApp `json:"apps"`
-}
-
 // NewStore creates an empty Store ready for use (no file persistence).
 func NewStore() *Store {
 	return &Store{
-		apps:  make(map[string]*Application),
-		clock: time.Now,
+		groups: make(map[string]*Group),
+		clock:  time.Now,
 	}
 }
 
@@ -47,7 +56,7 @@ func NewStore() *Store {
 // If the file exists, state is loaded from it; otherwise the store starts empty.
 func NewStoreWithFile(filePath string) *Store {
 	s := &Store{
-		apps:     make(map[string]*Application),
+		groups:   make(map[string]*Group),
 		filePath: filePath,
 		clock:    time.Now,
 	}
@@ -69,13 +78,14 @@ func (s *Store) save() {
 		return
 	}
 
-	data := persistedData{Apps: make(map[string]persistedApp, len(s.apps))}
-	for k, app := range s.apps {
-		data.Apps[k] = persistedApp{
-			ExeName:       app.ExeName,
-			DailyBudget:   int64(app.DailyBudget),
-			UsedToday:     int64(app.UsedToday),
-			LastResetDate: app.LastResetDate,
+	data := persistedData{Groups: make(map[string]persistedGroup, len(s.groups))}
+	for k, g := range s.groups {
+		data.Groups[k] = persistedGroup{
+			Name:          g.Name,
+			Processes:     g.Processes,
+			DailyBudget:   int64(g.DailyBudget),
+			UsedToday:     int64(g.UsedToday),
+			LastResetDate: g.LastResetDate,
 		}
 	}
 
@@ -98,6 +108,7 @@ func (s *Store) save() {
 
 // load reads state from the JSON file. If the file doesn't exist the store
 // stays empty. Must be called during construction (no lock needed).
+// Supports migration from the old "apps" format to the new "groups" format.
 func (s *Store) load() {
 	if s.filePath == "" {
 		return
@@ -108,128 +119,169 @@ func (s *Store) load() {
 		return
 	}
 
-	var data persistedData
-	if err := json.Unmarshal(b, &data); err != nil {
+	// Two-step unmarshal to support migration from old format.
+	var raw struct {
+		Apps   map[string]persistedApp   `json:"apps"`
+		Groups map[string]persistedGroup `json:"groups"`
+	}
+	if err := json.Unmarshal(b, &raw); err != nil {
 		return
 	}
 
-	for k, pa := range data.Apps {
-		s.apps[k] = &Application{
-			ExeName:       pa.ExeName,
-			DailyBudget:   time.Duration(pa.DailyBudget),
-			UsedToday:     time.Duration(pa.UsedToday),
-			LastResetDate: pa.LastResetDate,
+	if len(raw.Groups) > 0 {
+		for k, pg := range raw.Groups {
+			s.groups[k] = &Group{
+				Name:          pg.Name,
+				Processes:     pg.Processes,
+				DailyBudget:   time.Duration(pg.DailyBudget),
+				UsedToday:     time.Duration(pg.UsedToday),
+				LastResetDate: pg.LastResetDate,
+			}
 		}
+		return
+	}
+
+	// Migration: convert old apps into single-process groups.
+	if len(raw.Apps) > 0 {
+		for _, pa := range raw.Apps {
+			s.groups[pa.ExeName] = &Group{
+				Name:          pa.ExeName,
+				Processes:     []string{pa.ExeName},
+				DailyBudget:   time.Duration(pa.DailyBudget),
+				UsedToday:     time.Duration(pa.UsedToday),
+				LastResetDate: pa.LastResetDate,
+			}
+		}
+		// Re-save in the new format so future loads use the new schema.
+		s.save()
 	}
 }
 
-// AddApp registers a new application to track. Returns an error if an
-// application with the same exeName already exists (duplicate → 409 in the API).
-func (s *Store) AddApp(exeName string, budget time.Duration) (*Application, error) {
+// AddGroup registers a new group to track. Returns an error if a
+// group with the same name already exists (duplicate → 409 in the API).
+func (s *Store) AddGroup(name string, process string, budget time.Duration) (*Group, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, exists := s.apps[exeName]; exists {
-		return nil, fmt.Errorf("app already exists: %s", exeName)
+	if _, exists := s.groups[name]; exists {
+		return nil, fmt.Errorf("group already exists: %s", name)
 	}
 
-	app := &Application{
-		ExeName:     exeName,
+	g := &Group{
+		Name:        name,
+		Processes:   []string{process},
 		DailyBudget: budget,
 	}
-	s.apps[exeName] = app
+	s.groups[name] = g
 	s.save()
-	return app, nil
+	return g, nil
 }
 
-// GetApp returns the Application with the given exeName, or an error if not found.
-func (s *Store) GetApp(exeName string) (*Application, error) {
+// GetGroup returns the Group with the given name, or an error if not found.
+func (s *Store) GetGroup(name string) (*Group, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	app, ok := s.apps[exeName]
+	g, ok := s.groups[name]
 	if !ok {
-		return nil, fmt.Errorf("app not found: %s", exeName)
+		return nil, fmt.Errorf("group not found: %s", name)
 	}
-	return app, nil
+	return g, nil
 }
 
-// ListApps returns all tracked applications sorted alphabetically by ExeName.
-func (s *Store) ListApps() []*Application {
+// ListGroups returns all tracked groups sorted alphabetically by Name.
+func (s *Store) ListGroups() []*Group {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	result := make([]*Application, 0, len(s.apps))
-	for _, app := range s.apps {
-		result = append(result, app)
+	result := make([]*Group, 0, len(s.groups))
+	for _, g := range s.groups {
+		result = append(result, g)
 	}
 	sort.Slice(result, func(i, j int) bool {
-		return result[i].ExeName < result[j].ExeName
+		return result[i].Name < result[j].Name
 	})
 	return result
 }
 
-// UpdateBudget changes the daily budget for an existing application.
-// Returns an error if the app is not found (→ 404 in the API).
-func (s *Store) UpdateBudget(exeName string, budget time.Duration) (*Application, error) {
+// UpdateGroup changes the daily budget and process list for an existing group.
+// Returns an error if the group is not found (→ 404 in the API).
+func (s *Store) UpdateGroup(name string, budget time.Duration, processes []string) (*Group, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	app, ok := s.apps[exeName]
+	g, ok := s.groups[name]
 	if !ok {
-		return nil, fmt.Errorf("app not found: %s", exeName)
+		return nil, fmt.Errorf("group not found: %s", name)
 	}
-	app.DailyBudget = budget
+	g.DailyBudget = budget
+	g.Processes = processes
 	s.save()
-	return app, nil
+	return g, nil
 }
 
-// DeleteApp removes a tracked application. Returns an error if not found.
-func (s *Store) DeleteApp(exeName string) error {
+// DeleteGroup removes a tracked group. Returns an error if not found.
+func (s *Store) DeleteGroup(name string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, ok := s.apps[exeName]; !ok {
-		return fmt.Errorf("app not found: %s", exeName)
+	if _, ok := s.groups[name]; !ok {
+		return fmt.Errorf("group not found: %s", name)
 	}
-	delete(s.apps, exeName)
+	delete(s.groups, name)
 	s.save()
 	return nil
 }
 
-// RecordUsage adds the given number of seconds to an application's UsedToday.
-// If the current date differs from LastResetDate, UsedToday is reset to zero
-// first (automatic daily reset). Returns an error for unknown apps; the
-// handler silently ignores that error so the agent doesn't fail when it
-// reports usage for an app the manager has already deleted.
+// RecordUsage adds the given number of seconds to the usage of any group
+// whose Processes slice contains exeName. If the current date differs from
+// LastResetDate, UsedToday is reset to zero first (automatic daily reset).
+// Returns an error if no group contains the given exeName.
 func (s *Store) RecordUsage(exeName string, seconds int, totalSeconds int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	app, ok := s.apps[exeName]
-	if !ok {
-		return fmt.Errorf("app not found: %s", exeName)
-	}
-
-	// Reset accumulated usage when the date rolls over
-	today := s.clock().Format("2006-01-02")
-	if app.LastResetDate != today {
-		app.UsedToday = 0
-		app.LastResetDate = today
-	}
-	app.UsedToday += time.Duration(seconds) * time.Second
-
-	// If the client reports a total that's higher than what we have, use it
-	// (allows recovery after server restart)
-	if totalSeconds > 0 {
-		clientTotal := time.Duration(totalSeconds) * time.Second
-		if clientTotal > app.UsedToday {
-			app.UsedToday = clientTotal
+	found := false
+	for _, g := range s.groups {
+		if !containsProcess(g.Processes, exeName) {
+			continue
 		}
+		found = true
+
+		// Reset accumulated usage when the date rolls over
+		today := s.clock().Format("2006-01-02")
+		if g.LastResetDate != today {
+			g.UsedToday = 0
+			g.LastResetDate = today
+		}
+		g.UsedToday += time.Duration(seconds) * time.Second
+
+		// If the client reports a total that's higher than what we have, use it
+		// (allows recovery after server restart)
+		if totalSeconds > 0 {
+			clientTotal := time.Duration(totalSeconds) * time.Second
+			if clientTotal > g.UsedToday {
+				g.UsedToday = clientTotal
+			}
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("no group contains process: %s", exeName)
 	}
 
 	s.save()
 	return nil
+}
+
+// containsProcess checks whether the slice contains the given process name.
+func containsProcess(processes []string, name string) bool {
+	for _, p := range processes {
+		if p == name {
+			return true
+		}
+	}
+	return false
 }
 
 // RequestTestPopup records a test popup request and returns the timestamp.
@@ -247,19 +299,19 @@ func (s *Store) GetTestPopupRequestedAt() time.Time {
 	return s.testPopupRequestedAt
 }
 
-// GetUsageSummary returns a UsageSummary for every tracked app, sorted by
-// ExeName. This is the primary data source for the UI's "Tracked Applications"
+// GetUsageSummary returns a UsageSummary for every tracked group, sorted by
+// Name. This is the primary data source for the UI's "Tracked Applications"
 // table (GET /api/usage/today).
 func (s *Store) GetUsageSummary() []UsageSummary {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	result := make([]UsageSummary, 0, len(s.apps))
-	for _, app := range s.apps {
-		result = append(result, app.ToUsageSummary())
+	result := make([]UsageSummary, 0, len(s.groups))
+	for _, g := range s.groups {
+		result = append(result, g.ToUsageSummary())
 	}
 	sort.Slice(result, func(i, j int) bool {
-		return result[i].ExeName < result[j].ExeName
+		return result[i].Name < result[j].Name
 	})
 	return result
 }

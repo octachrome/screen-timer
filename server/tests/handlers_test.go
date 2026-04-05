@@ -17,11 +17,11 @@ func setupRouter() (*server.Store, *http.ServeMux) {
 	return store, router
 }
 
-func addApp(t *testing.T, store *server.Store, exe string, budgetMinutes int) {
+func addGroup(t *testing.T, store *server.Store, name string, process string, budget int) {
 	t.Helper()
-	_, err := store.AddApp(exe, time.Duration(budgetMinutes)*time.Minute)
+	_, err := store.AddGroup(name, process, time.Duration(budget)*time.Minute)
 	if err != nil {
-		t.Fatalf("failed to add app %s: %v", exe, err)
+		t.Fatalf("failed to add group %s: %v", name, err)
 	}
 }
 
@@ -37,7 +37,7 @@ func jsonBody(t *testing.T, v any) *bytes.Reader {
 func TestPostAppsValid(t *testing.T) {
 	_, router := setupRouter()
 
-	body := jsonBody(t, server.AddAppRequest{ExeName: "Fortnite.exe", DailyBudgetMinutes: 60})
+	body := jsonBody(t, server.AddGroupRequest{Name: "Fortnite.exe", Process: "Fortnite.exe", DailyBudgetMinutes: 60})
 	req := httptest.NewRequest(http.MethodPost, "/api/apps", body)
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
@@ -52,8 +52,8 @@ func TestPostAppsValid(t *testing.T) {
 	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	if resp.ExeName != "Fortnite.exe" {
-		t.Errorf("expected exe_name Fortnite.exe, got %s", resp.ExeName)
+	if resp.Name != "Fortnite.exe" {
+		t.Errorf("expected name Fortnite.exe, got %s", resp.Name)
 	}
 	if resp.DailyBudgetMinutes != 60 {
 		t.Errorf("expected daily_budget_minutes 60, got %d", resp.DailyBudgetMinutes)
@@ -69,7 +69,7 @@ func TestPostAppsValid(t *testing.T) {
 func TestPostAppsMissingExeName(t *testing.T) {
 	_, router := setupRouter()
 
-	body := jsonBody(t, server.AddAppRequest{ExeName: "", DailyBudgetMinutes: 60})
+	body := jsonBody(t, server.AddGroupRequest{Name: "", Process: "", DailyBudgetMinutes: 60})
 	req := httptest.NewRequest(http.MethodPost, "/api/apps", body)
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
@@ -83,9 +83,9 @@ func TestPostAppsMissingExeName(t *testing.T) {
 
 func TestPostAppsDuplicate(t *testing.T) {
 	store, router := setupRouter()
-	addApp(t, store, "Fortnite.exe", 60)
+	addGroup(t, store, "Fortnite.exe", "Fortnite.exe", 60)
 
-	body := jsonBody(t, server.AddAppRequest{ExeName: "Fortnite.exe", DailyBudgetMinutes: 60})
+	body := jsonBody(t, server.AddGroupRequest{Name: "Fortnite.exe", Process: "Fortnite.exe", DailyBudgetMinutes: 60})
 	req := httptest.NewRequest(http.MethodPost, "/api/apps", body)
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
@@ -117,8 +117,8 @@ func TestGetAppsEmpty(t *testing.T) {
 
 func TestGetAppsPopulated(t *testing.T) {
 	store, router := setupRouter()
-	addApp(t, store, "Fortnite.exe", 60)
-	addApp(t, store, "Minecraft.exe", 120)
+	addGroup(t, store, "Fortnite.exe", "Fortnite.exe", 60)
+	addGroup(t, store, "Minecraft.exe", "Minecraft.exe", 120)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/apps", nil)
 	rr := httptest.NewRecorder()
@@ -134,21 +134,21 @@ func TestGetAppsPopulated(t *testing.T) {
 		t.Fatalf("failed to decode response: %v", err)
 	}
 	if len(summaries) != 2 {
-		t.Fatalf("expected 2 apps, got %d", len(summaries))
+		t.Fatalf("expected 2 groups, got %d", len(summaries))
 	}
-	if summaries[0].ExeName != "Fortnite.exe" {
-		t.Errorf("expected first app Fortnite.exe, got %s", summaries[0].ExeName)
+	if summaries[0].Name != "Fortnite.exe" {
+		t.Errorf("expected first group Fortnite.exe, got %s", summaries[0].Name)
 	}
-	if summaries[1].ExeName != "Minecraft.exe" {
-		t.Errorf("expected second app Minecraft.exe, got %s", summaries[1].ExeName)
+	if summaries[1].Name != "Minecraft.exe" {
+		t.Errorf("expected second group Minecraft.exe, got %s", summaries[1].Name)
 	}
 }
 
 func TestPutAppsValid(t *testing.T) {
 	store, router := setupRouter()
-	addApp(t, store, "Fortnite.exe", 60)
+	addGroup(t, store, "Fortnite.exe", "Fortnite.exe", 60)
 
-	body := jsonBody(t, server.UpdateBudgetRequest{DailyBudgetMinutes: 90})
+	body := jsonBody(t, server.UpdateGroupRequest{DailyBudgetMinutes: 90, Processes: []string{"Fortnite.exe"}})
 	req := httptest.NewRequest(http.MethodPut, "/api/apps/Fortnite.exe", body)
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
@@ -171,7 +171,7 @@ func TestPutAppsValid(t *testing.T) {
 func TestPutAppsNotFound(t *testing.T) {
 	_, router := setupRouter()
 
-	body := jsonBody(t, server.UpdateBudgetRequest{DailyBudgetMinutes: 90})
+	body := jsonBody(t, server.UpdateGroupRequest{DailyBudgetMinutes: 90, Processes: []string{"Unknown.exe"}})
 	req := httptest.NewRequest(http.MethodPut, "/api/apps/Unknown.exe", body)
 	req.Header.Set("Content-Type", "application/json")
 	rr := httptest.NewRecorder()
@@ -185,7 +185,7 @@ func TestPutAppsNotFound(t *testing.T) {
 
 func TestDeleteAppsValid(t *testing.T) {
 	store, router := setupRouter()
-	addApp(t, store, "Fortnite.exe", 60)
+	addGroup(t, store, "Fortnite.exe", "Fortnite.exe", 60)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/apps/Fortnite.exe", nil)
 	rr := httptest.NewRecorder()
@@ -212,8 +212,8 @@ func TestDeleteAppsNotFound(t *testing.T) {
 
 func TestGetUsageToday(t *testing.T) {
 	store, router := setupRouter()
-	addApp(t, store, "Fortnite.exe", 60)
-	addApp(t, store, "Minecraft.exe", 120)
+	addGroup(t, store, "Fortnite.exe", "Fortnite.exe", 60)
+	addGroup(t, store, "Minecraft.exe", "Minecraft.exe", 120)
 	if err := store.RecordUsage("Fortnite.exe", 600, 0); err != nil {
 		t.Fatalf("failed to record usage: %v", err)
 	}
@@ -235,10 +235,10 @@ func TestGetUsageToday(t *testing.T) {
 		t.Fatalf("expected 2 summaries, got %d", len(summaries))
 	}
 
-	// Sorted by exe_name: Fortnite.exe first
+	// Sorted by name: Fortnite.exe first
 	fortnite := summaries[0]
-	if fortnite.ExeName != "Fortnite.exe" {
-		t.Errorf("expected Fortnite.exe, got %s", fortnite.ExeName)
+	if fortnite.Name != "Fortnite.exe" {
+		t.Errorf("expected Fortnite.exe, got %s", fortnite.Name)
 	}
 	if fortnite.UsedTodayMinutes != 10 {
 		t.Errorf("expected used_today_minutes 10, got %d", fortnite.UsedTodayMinutes)
@@ -248,8 +248,8 @@ func TestGetUsageToday(t *testing.T) {
 	}
 
 	minecraft := summaries[1]
-	if minecraft.ExeName != "Minecraft.exe" {
-		t.Errorf("expected Minecraft.exe, got %s", minecraft.ExeName)
+	if minecraft.Name != "Minecraft.exe" {
+		t.Errorf("expected Minecraft.exe, got %s", minecraft.Name)
 	}
 	if minecraft.UsedTodayMinutes != 0 {
 		t.Errorf("expected used_today_minutes 0, got %d", minecraft.UsedTodayMinutes)
@@ -258,8 +258,8 @@ func TestGetUsageToday(t *testing.T) {
 
 func TestGetAgentConfig(t *testing.T) {
 	store, router := setupRouter()
-	addApp(t, store, "Fortnite.exe", 60)
-	addApp(t, store, "Minecraft.exe", 120)
+	addGroup(t, store, "Fortnite.exe", "Fortnite.exe", 60)
+	addGroup(t, store, "Minecraft.exe", "Minecraft.exe", 120)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/agent/config", nil)
 	rr := httptest.NewRecorder()
@@ -274,14 +274,14 @@ func TestGetAgentConfig(t *testing.T) {
 	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	if len(resp.Apps) != 2 {
-		t.Fatalf("expected 2 configs, got %d", len(resp.Apps))
+	if len(resp.Groups) != 2 {
+		t.Fatalf("expected 2 configs, got %d", len(resp.Groups))
 	}
-	if resp.Apps[0].ExeName != "Fortnite.exe" || resp.Apps[0].DailyBudgetMinutes != 60 {
-		t.Errorf("unexpected first config: %+v", resp.Apps[0])
+	if resp.Groups[0].Name != "Fortnite.exe" || resp.Groups[0].DailyBudgetMinutes != 60 {
+		t.Errorf("unexpected first config: %+v", resp.Groups[0])
 	}
-	if resp.Apps[1].ExeName != "Minecraft.exe" || resp.Apps[1].DailyBudgetMinutes != 120 {
-		t.Errorf("unexpected second config: %+v", resp.Apps[1])
+	if resp.Groups[1].Name != "Minecraft.exe" || resp.Groups[1].DailyBudgetMinutes != 120 {
+		t.Errorf("unexpected second config: %+v", resp.Groups[1])
 	}
 	if resp.TestPopupAt != "" {
 		t.Errorf("expected empty test_popup_at, got %s", resp.TestPopupAt)
@@ -338,7 +338,7 @@ func TestAgentConfigIncludesTestPopupAt(t *testing.T) {
 
 func TestPostAgentUsage(t *testing.T) {
 	store, router := setupRouter()
-	addApp(t, store, "Fortnite.exe", 60)
+	addGroup(t, store, "Fortnite.exe", "Fortnite.exe", 60)
 
 	push := server.UsagePush{
 		Usage: []server.UsageReport{
@@ -357,12 +357,12 @@ func TestPostAgentUsage(t *testing.T) {
 	}
 
 	// Verify store was updated
-	app, err := store.GetApp("Fortnite.exe")
+	g, err := store.GetGroup("Fortnite.exe")
 	if err != nil {
-		t.Fatalf("failed to get app: %v", err)
+		t.Fatalf("failed to get group: %v", err)
 	}
-	if app.UsedToday != 5*time.Minute {
-		t.Errorf("expected 5m usage, got %v", app.UsedToday)
+	if g.UsedToday != 5*time.Minute {
+		t.Errorf("expected 5m usage, got %v", g.UsedToday)
 	}
 }
 

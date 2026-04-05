@@ -7,16 +7,17 @@ import (
 	"net/http"
 )
 
-// AppConfig mirrors the server's AppConfig type.
-type AppConfig struct {
-	ExeName            string `json:"exe_name"`
-	DailyBudgetMinutes int    `json:"daily_budget_minutes"`
+// GroupConfig mirrors the server's GroupConfig type.
+type GroupConfig struct {
+	Name               string   `json:"name"`
+	Processes          []string `json:"processes"`
+	DailyBudgetMinutes int      `json:"daily_budget_minutes"`
 }
 
 // AgentConfigResponse mirrors the server's AgentConfigResponse type.
 type AgentConfigResponse struct {
-	Apps        []AppConfig `json:"apps"`
-	TestPopupAt string      `json:"test_popup_at,omitempty"`
+	Groups      []GroupConfig `json:"groups"`
+	TestPopupAt string        `json:"test_popup_at,omitempty"`
 }
 
 // UsageReport mirrors the server's UsageReport type.
@@ -31,21 +32,24 @@ type usagePush struct {
 
 // UsageSummary mirrors the server's UsageSummary type.
 type UsageSummary struct {
-	ExeName            string `json:"exe_name"`
-	DailyBudgetMinutes int    `json:"daily_budget_minutes"`
-	UsedTodayMinutes   int    `json:"used_today_minutes"`
-	RemainingMinutes   int    `json:"remaining_minutes"`
+	Name               string   `json:"name"`
+	Processes          []string `json:"processes"`
+	DailyBudgetMinutes int      `json:"daily_budget_minutes"`
+	UsedTodayMinutes   int      `json:"used_today_minutes"`
+	RemainingMinutes   int      `json:"remaining_minutes"`
 }
 
-// AddAppRequest mirrors the server's AddAppRequest.
-type AddAppRequest struct {
-	ExeName            string `json:"exe_name"`
+// AddGroupRequest mirrors the server's AddGroupRequest.
+type AddGroupRequest struct {
+	Name               string `json:"name"`
+	Process            string `json:"process"`
 	DailyBudgetMinutes int    `json:"daily_budget_minutes"`
 }
 
-// UpdateBudgetRequest mirrors the server's UpdateBudgetRequest.
-type UpdateBudgetRequest struct {
-	DailyBudgetMinutes int `json:"daily_budget_minutes"`
+// UpdateGroupRequest mirrors the server's UpdateGroupRequest.
+type UpdateGroupRequest struct {
+	DailyBudgetMinutes int      `json:"daily_budget_minutes"`
+	Processes          []string `json:"processes"`
 }
 
 // Client is a mock HTTP client that speaks the same REST protocol as the C# agent.
@@ -109,8 +113,8 @@ func (c *Client) PushUsage(usage []UsageReport) error {
 	return nil
 }
 
-// AddApp creates a new tracked application (POST /api/apps).
-func (c *Client) AddApp(req AddAppRequest) (*UsageSummary, error) {
+// AddGroup creates a new tracked group (POST /api/apps).
+func (c *Client) AddGroup(req AddGroupRequest) (*UsageSummary, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
@@ -130,8 +134,8 @@ func (c *Client) AddApp(req AddAppRequest) (*UsageSummary, error) {
 	return &summary, nil
 }
 
-// ListApps lists all tracked applications (GET /api/apps).
-func (c *Client) ListApps() ([]UsageSummary, error) {
+// ListGroups lists all tracked groups (GET /api/apps).
+func (c *Client) ListGroups() ([]UsageSummary, error) {
 	resp, err := c.HTTPClient.Get(c.BaseURL + "/api/apps")
 	if err != nil {
 		return nil, err
@@ -147,13 +151,13 @@ func (c *Client) ListApps() ([]UsageSummary, error) {
 	return summaries, nil
 }
 
-// UpdateApp updates the budget for a tracked application (PUT /api/apps/{exeName}).
-func (c *Client) UpdateApp(exeName string, req UpdateBudgetRequest) (*UsageSummary, error) {
+// UpdateGroup updates a tracked group (PUT /api/apps/{name}).
+func (c *Client) UpdateGroup(name string, req UpdateGroupRequest) (*UsageSummary, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
 	}
-	httpReq, err := http.NewRequest(http.MethodPut, c.BaseURL+"/api/apps/"+exeName, bytes.NewReader(body))
+	httpReq, err := http.NewRequest(http.MethodPut, c.BaseURL+"/api/apps/"+name, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -173,9 +177,9 @@ func (c *Client) UpdateApp(exeName string, req UpdateBudgetRequest) (*UsageSumma
 	return &summary, nil
 }
 
-// DeleteApp removes a tracked application (DELETE /api/apps/{exeName}).
-func (c *Client) DeleteApp(exeName string) error {
-	req, err := http.NewRequest(http.MethodDelete, c.BaseURL+"/api/apps/"+exeName, nil)
+// DeleteGroup removes a tracked group (DELETE /api/apps/{name}).
+func (c *Client) DeleteGroup(name string) error {
+	req, err := http.NewRequest(http.MethodDelete, c.BaseURL+"/api/apps/"+name, nil)
 	if err != nil {
 		return err
 	}

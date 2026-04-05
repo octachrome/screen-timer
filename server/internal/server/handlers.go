@@ -51,8 +51,8 @@ func NewRouter(store *Store) *http.ServeMux {
 	// UI endpoints
 	mux.HandleFunc("GET /api/apps", handleListApps(store))
 	mux.HandleFunc("POST /api/apps", handleAddApp(store))
-	mux.HandleFunc("PUT /api/apps/{exe}", handleUpdateApp(store))
-	mux.HandleFunc("DELETE /api/apps/{exe}", handleDeleteApp(store))
+	mux.HandleFunc("PUT /api/apps/{name}", handleUpdateApp(store))
+	mux.HandleFunc("DELETE /api/apps/{name}", handleDeleteApp(store))
 	mux.HandleFunc("GET /api/usage/today", handleUsageToday(store))
 
 	// Agent endpoints
@@ -66,50 +66,51 @@ func NewRouter(store *Store) *http.ServeMux {
 	return mux
 }
 
-// handleListApps returns all tracked apps as UsageSummary objects.
+// handleListApps returns all tracked groups as UsageSummary objects.
 func handleListApps(store *Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		apps := store.ListApps()
-		summaries := make([]UsageSummary, len(apps))
-		for i := range apps {
-			summaries[i] = apps[i].ToUsageSummary()
+		groups := store.ListGroups()
+		summaries := make([]UsageSummary, len(groups))
+		for i := range groups {
+			summaries[i] = groups[i].ToUsageSummary()
 		}
 		writeJSON(w, http.StatusOK, summaries)
 	}
 }
 
-// handleAddApp adds a new application to track.
-// Returns 201 on success, 400 for validation errors, 409 if the app already exists.
+// handleAddApp adds a new group to track.
+// Returns 201 on success, 400 for validation errors, 409 if the group already exists.
 func handleAddApp(store *Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req AddAppRequest
+		var req AddGroupRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
-		if req.ExeName == "" {
-			writeError(w, http.StatusBadRequest, "exe_name must not be empty")
+		if req.Name == "" {
+			writeError(w, http.StatusBadRequest, "name must not be empty")
 			return
 		}
 		if req.DailyBudgetMinutes <= 0 {
 			writeError(w, http.StatusBadRequest, "daily_budget_minutes must be greater than 0")
 			return
 		}
-		app, err := store.AddApp(req.ExeName, time.Duration(req.DailyBudgetMinutes)*time.Minute)
+		budget := time.Duration(req.DailyBudgetMinutes) * time.Minute
+		group, err := store.AddGroup(req.Name, req.Process, budget)
 		if err != nil {
 			writeError(w, http.StatusConflict, err.Error())
 			return
 		}
-		summary := app.ToUsageSummary()
+		summary := group.ToUsageSummary()
 		writeJSON(w, http.StatusCreated, summary)
 	}
 }
 
-// handleUpdateApp updates the daily budget for a tracked application.
+// handleUpdateApp updates the daily budget and processes for a tracked group.
 func handleUpdateApp(store *Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		exe := r.PathValue("exe")
-		var req UpdateBudgetRequest
+		name := r.PathValue("name")
+		var req UpdateGroupRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid request body")
 			return
@@ -118,21 +119,22 @@ func handleUpdateApp(store *Store) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "daily_budget_minutes must be greater than 0")
 			return
 		}
-		app, err := store.UpdateBudget(exe, time.Duration(req.DailyBudgetMinutes)*time.Minute)
+		budget := time.Duration(req.DailyBudgetMinutes) * time.Minute
+		group, err := store.UpdateGroup(name, budget, req.Processes)
 		if err != nil {
 			writeError(w, http.StatusNotFound, err.Error())
 			return
 		}
-		summary := app.ToUsageSummary()
+		summary := group.ToUsageSummary()
 		writeJSON(w, http.StatusOK, summary)
 	}
 }
 
-// handleDeleteApp removes an application from tracking.
+// handleDeleteApp removes a group from tracking.
 func handleDeleteApp(store *Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		exe := r.PathValue("exe")
-		if err := store.DeleteApp(exe); err != nil {
+		name := r.PathValue("name")
+		if err := store.DeleteGroup(name); err != nil {
 			writeError(w, http.StatusNotFound, err.Error())
 			return
 		}
@@ -148,15 +150,15 @@ func handleUsageToday(store *Store) http.HandlerFunc {
 	}
 }
 
-// handleAgentConfig returns the app configs for the agent.
+// handleAgentConfig returns the group configs for the agent.
 func handleAgentConfig(store *Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		apps := store.ListApps()
-		configs := make([]AppConfig, len(apps))
-		for i := range apps {
-			configs[i] = apps[i].ToAppConfig()
+		groups := store.ListGroups()
+		configs := make([]GroupConfig, len(groups))
+		for i := range groups {
+			configs[i] = groups[i].ToGroupConfig()
 		}
-		resp := AgentConfigResponse{Apps: configs}
+		resp := AgentConfigResponse{Groups: configs}
 		if t := store.GetTestPopupRequestedAt(); !t.IsZero() {
 			resp.TestPopupAt = t.Format(time.RFC3339)
 		}

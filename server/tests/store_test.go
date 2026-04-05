@@ -1,6 +1,8 @@
 package tests
 
 import (
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -8,163 +10,163 @@ import (
 	"github.com/octachrome/screen-timer/server/internal/server"
 )
 
-func TestAddApp(t *testing.T) {
+func TestAddGroup(t *testing.T) {
 	s := server.NewStore()
-	app, err := s.AddApp("firefox", 60*time.Minute)
+	g, err := s.AddGroup("firefox", "firefox", 60*time.Minute)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if app.ExeName != "firefox" {
-		t.Errorf("ExeName = %q, want %q", app.ExeName, "firefox")
+	if g.Name != "firefox" {
+		t.Errorf("Name = %q, want %q", g.Name, "firefox")
 	}
-	if app.DailyBudget != 60*time.Minute {
-		t.Errorf("DailyBudget = %v, want %v", app.DailyBudget, 60*time.Minute)
+	if g.DailyBudget != 60*time.Minute {
+		t.Errorf("DailyBudget = %v, want %v", g.DailyBudget, 60*time.Minute)
 	}
 
-	apps := s.ListApps()
-	if len(apps) != 1 {
-		t.Fatalf("ListApps returned %d apps, want 1", len(apps))
+	groups := s.ListGroups()
+	if len(groups) != 1 {
+		t.Fatalf("ListGroups returned %d groups, want 1", len(groups))
 	}
-	if apps[0].ExeName != "firefox" {
-		t.Errorf("ListApps[0].ExeName = %q, want %q", apps[0].ExeName, "firefox")
+	if groups[0].Name != "firefox" {
+		t.Errorf("ListGroups[0].Name = %q, want %q", groups[0].Name, "firefox")
 	}
-	if apps[0].DailyBudget != 60*time.Minute {
-		t.Errorf("ListApps[0].DailyBudget = %v, want %v", apps[0].DailyBudget, 60*time.Minute)
+	if groups[0].DailyBudget != 60*time.Minute {
+		t.Errorf("ListGroups[0].DailyBudget = %v, want %v", groups[0].DailyBudget, 60*time.Minute)
 	}
 }
 
-func TestAddDuplicateApp(t *testing.T) {
+func TestAddDuplicateGroup(t *testing.T) {
 	s := server.NewStore()
-	_, err := s.AddApp("firefox", 60*time.Minute)
+	_, err := s.AddGroup("firefox", "firefox", 60*time.Minute)
 	if err != nil {
 		t.Fatalf("unexpected error on first add: %v", err)
 	}
 
-	_, err = s.AddApp("firefox", 30*time.Minute)
+	_, err = s.AddGroup("firefox", "firefox", 30*time.Minute)
 	if err == nil {
 		t.Fatal("expected error on duplicate add, got nil")
 	}
 }
 
-func TestGetApp(t *testing.T) {
+func TestGetGroup(t *testing.T) {
 	s := server.NewStore()
-	_, err := s.AddApp("chrome", 45*time.Minute)
+	_, err := s.AddGroup("chrome", "chrome", 45*time.Minute)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	app, err := s.GetApp("chrome")
+	g, err := s.GetGroup("chrome")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if app.ExeName != "chrome" {
-		t.Errorf("ExeName = %q, want %q", app.ExeName, "chrome")
+	if g.Name != "chrome" {
+		t.Errorf("Name = %q, want %q", g.Name, "chrome")
 	}
-	if app.DailyBudget != 45*time.Minute {
-		t.Errorf("DailyBudget = %v, want %v", app.DailyBudget, 45*time.Minute)
+	if g.DailyBudget != 45*time.Minute {
+		t.Errorf("DailyBudget = %v, want %v", g.DailyBudget, 45*time.Minute)
 	}
 
-	_, err = s.GetApp("unknown")
+	_, err = s.GetGroup("unknown")
 	if err == nil {
-		t.Fatal("expected error for unknown app, got nil")
+		t.Fatal("expected error for unknown group, got nil")
 	}
 }
 
-func TestUpdateBudget(t *testing.T) {
+func TestUpdateGroup(t *testing.T) {
 	s := server.NewStore()
-	_, err := s.AddApp("slack", 30*time.Minute)
+	_, err := s.AddGroup("slack", "slack", 30*time.Minute)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	app, err := s.UpdateBudget("slack", 90*time.Minute)
+	g, err := s.UpdateGroup("slack", 90*time.Minute, []string{"slack"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if app.DailyBudget != 90*time.Minute {
-		t.Errorf("DailyBudget = %v, want %v", app.DailyBudget, 90*time.Minute)
+	if g.DailyBudget != 90*time.Minute {
+		t.Errorf("DailyBudget = %v, want %v", g.DailyBudget, 90*time.Minute)
 	}
 
-	got, _ := s.GetApp("slack")
+	got, _ := s.GetGroup("slack")
 	if got.DailyBudget != 90*time.Minute {
-		t.Errorf("GetApp after update: DailyBudget = %v, want %v", got.DailyBudget, 90*time.Minute)
+		t.Errorf("GetGroup after update: DailyBudget = %v, want %v", got.DailyBudget, 90*time.Minute)
 	}
 
-	_, err = s.UpdateBudget("unknown", 10*time.Minute)
+	_, err = s.UpdateGroup("unknown", 10*time.Minute, []string{"unknown"})
 	if err == nil {
-		t.Fatal("expected error for unknown app, got nil")
+		t.Fatal("expected error for unknown group, got nil")
 	}
 }
 
-func TestDeleteApp(t *testing.T) {
+func TestDeleteGroup(t *testing.T) {
 	s := server.NewStore()
-	_, _ = s.AddApp("discord", 20*time.Minute)
+	_, _ = s.AddGroup("discord", "discord", 20*time.Minute)
 
-	err := s.DeleteApp("discord")
+	err := s.DeleteGroup("discord")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	apps := s.ListApps()
-	if len(apps) != 0 {
-		t.Errorf("ListApps returned %d apps after delete, want 0", len(apps))
+	groups := s.ListGroups()
+	if len(groups) != 0 {
+		t.Errorf("ListGroups returned %d groups after delete, want 0", len(groups))
 	}
 
-	err = s.DeleteApp("unknown")
+	err = s.DeleteGroup("unknown")
 	if err == nil {
-		t.Fatal("expected error for unknown app, got nil")
+		t.Fatal("expected error for unknown group, got nil")
 	}
 }
 
 func TestRecordUsage(t *testing.T) {
 	s := server.NewStore()
-	_, _ = s.AddApp("spotify", 60*time.Minute)
+	_, _ = s.AddGroup("spotify", "spotify", 60*time.Minute)
 
 	err := s.RecordUsage("spotify", 30, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	app, _ := s.GetApp("spotify")
-	if app.UsedToday != 30*time.Second {
-		t.Errorf("UsedToday = %v, want %v", app.UsedToday, 30*time.Second)
+	g, _ := s.GetGroup("spotify")
+	if g.UsedToday != 30*time.Second {
+		t.Errorf("UsedToday = %v, want %v", g.UsedToday, 30*time.Second)
 	}
 }
 
 func TestRecordUsageAccumulates(t *testing.T) {
 	s := server.NewStore()
-	_, _ = s.AddApp("vscode", 120*time.Minute)
+	_, _ = s.AddGroup("vscode", "vscode", 120*time.Minute)
 
 	_ = s.RecordUsage("vscode", 10, 0)
 	_ = s.RecordUsage("vscode", 20, 0)
 	_ = s.RecordUsage("vscode", 30, 0)
 
-	app, _ := s.GetApp("vscode")
-	if app.UsedToday != 60*time.Second {
-		t.Errorf("UsedToday = %v, want %v", app.UsedToday, 60*time.Second)
+	g, _ := s.GetGroup("vscode")
+	if g.UsedToday != 60*time.Second {
+		t.Errorf("UsedToday = %v, want %v", g.UsedToday, 60*time.Second)
 	}
 }
 
 func TestRecordUsageDayReset(t *testing.T) {
 	s := server.NewStore()
-	_, _ = s.AddApp("zoom", 60*time.Minute)
+	_, _ = s.AddGroup("zoom", "zoom", 60*time.Minute)
 
 	_ = s.RecordUsage("zoom", 100, 0)
 
-	app, _ := s.GetApp("zoom")
-	if app.UsedToday != 100*time.Second {
-		t.Fatalf("UsedToday = %v, want %v", app.UsedToday, 100*time.Second)
+	g, _ := s.GetGroup("zoom")
+	if g.UsedToday != 100*time.Second {
+		t.Fatalf("UsedToday = %v, want %v", g.UsedToday, 100*time.Second)
 	}
 
 	// Simulate a day change by setting LastResetDate to yesterday.
 	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
-	app.LastResetDate = yesterday
+	g.LastResetDate = yesterday
 
 	_ = s.RecordUsage("zoom", 25, 0)
 
-	app, _ = s.GetApp("zoom")
-	if app.UsedToday != 25*time.Second {
-		t.Errorf("UsedToday after day reset = %v, want %v", app.UsedToday, 25*time.Second)
+	g, _ = s.GetGroup("zoom")
+	if g.UsedToday != 25*time.Second {
+		t.Errorf("UsedToday after day reset = %v, want %v", g.UsedToday, 25*time.Second)
 	}
 }
 
@@ -179,73 +181,73 @@ func TestRecordUsageUnknownApp(t *testing.T) {
 
 func TestRecordUsageTotalRecovery(t *testing.T) {
 	s := server.NewStore()
-	_, _ = s.AddApp("game", 60*time.Minute)
+	_, _ = s.AddGroup("game", "game", 60*time.Minute)
 
 	// Simulate: server knows 10s usage, client reports 5s delta but 100s total
 	_ = s.RecordUsage("game", 10, 0)  // initial 10s
 	_ = s.RecordUsage("game", 5, 100) // 5s delta, 100s total → should use 100s
 
-	app, _ := s.GetApp("game")
-	if app.UsedToday != 100*time.Second {
-		t.Errorf("UsedToday = %v, want %v", app.UsedToday, 100*time.Second)
+	g, _ := s.GetGroup("game")
+	if g.UsedToday != 100*time.Second {
+		t.Errorf("UsedToday = %v, want %v", g.UsedToday, 100*time.Second)
 	}
 }
 
 func TestPersistenceRoundTrip(t *testing.T) {
 	fp := filepath.Join(t.TempDir(), "test.json")
 	s1 := server.NewStoreWithFile(fp)
-	_, _ = s1.AddApp("chrome", 60*time.Minute)
-	_, _ = s1.AddApp("firefox", 120*time.Minute)
+	_, _ = s1.AddGroup("chrome", "chrome", 60*time.Minute)
+	_, _ = s1.AddGroup("firefox", "firefox", 120*time.Minute)
 	_ = s1.RecordUsage("chrome", 300, 0)
 
 	// Create a new store from the same file
 	s2 := server.NewStoreWithFile(fp)
-	apps := s2.ListApps()
-	if len(apps) != 2 {
-		t.Fatalf("expected 2 apps after reload, got %d", len(apps))
+	groups := s2.ListGroups()
+	if len(groups) != 2 {
+		t.Fatalf("expected 2 groups after reload, got %d", len(groups))
 	}
-	app, err := s2.GetApp("chrome")
+	g, err := s2.GetGroup("chrome")
 	if err != nil {
 		t.Fatalf("chrome not found after reload: %v", err)
 	}
-	if app.DailyBudget != 60*time.Minute {
-		t.Errorf("chrome DailyBudget = %v, want %v", app.DailyBudget, 60*time.Minute)
+	if g.DailyBudget != 60*time.Minute {
+		t.Errorf("chrome DailyBudget = %v, want %v", g.DailyBudget, 60*time.Minute)
 	}
-	if app.UsedToday != 300*time.Second {
-		t.Errorf("chrome UsedToday = %v, want %v", app.UsedToday, 300*time.Second)
+	if g.UsedToday != 300*time.Second {
+		t.Errorf("chrome UsedToday = %v, want %v", g.UsedToday, 300*time.Second)
 	}
 }
 
 func TestPersistenceNonExistentFile(t *testing.T) {
 	fp := filepath.Join(t.TempDir(), "subdir", "nonexistent.json")
 	s := server.NewStoreWithFile(fp)
-	apps := s.ListApps()
-	if len(apps) != 0 {
-		t.Errorf("expected 0 apps for new file, got %d", len(apps))
+	groups := s.ListGroups()
+	if len(groups) != 0 {
+		t.Errorf("expected 0 groups for new file, got %d", len(groups))
 	}
-	// Should work fine — adding an app creates the file
-	_, err := s.AddApp("test", 30*time.Minute)
+	// Should work fine — adding a group creates the file
+	_, err := s.AddGroup("test", "test", 30*time.Minute)
 	if err != nil {
-		t.Fatalf("AddApp failed: %v", err)
+		t.Fatalf("AddGroup failed: %v", err)
 	}
 }
 
 func TestGetUsageSummary(t *testing.T) {
 	s := server.NewStore()
-	_, _ = s.AddApp("alpha", 60*time.Minute)
-	_, _ = s.AddApp("beta", 120*time.Minute)
+	_, _ = s.AddGroup("alpha", "alpha", 60*time.Minute)
+	_, _ = s.AddGroup("beta", "beta", 120*time.Minute)
 
-	_ = s.RecordUsage("alpha", 600, 0)  // 10 minutes
-	_ = s.RecordUsage("beta", 1800, 0)  // 30 minutes
+	_ = s.RecordUsage("alpha", 600, 0) // 10 minutes
+	_ = s.RecordUsage("beta", 1800, 0) // 30 minutes
 
 	summaries := s.GetUsageSummary()
 	if len(summaries) != 2 {
 		t.Fatalf("GetUsageSummary returned %d entries, want 2", len(summaries))
 	}
 
-	// Sorted by ExeName: alpha, beta
-	if summaries[0].ExeName != "alpha" {
-		t.Errorf("summaries[0].ExeName = %q, want %q", summaries[0].ExeName, "alpha")
+	// Sorted by Name: alpha, beta
+	if summaries[0].Name != "alpha" {
+		t.Errorf("summaries[0].Name = %q, want %q", summaries[0].Name, "alpha")
 	}
 	if summaries[0].DailyBudgetMinutes != 60 {
 		t.Errorf("alpha DailyBudgetMinutes = %d, want 60", summaries[0].DailyBudgetMinutes)
@@ -257,8 +259,8 @@ func TestGetUsageSummary(t *testing.T) {
 		t.Errorf("alpha RemainingMinutes = %d, want 50", summaries[0].RemainingMinutes)
 	}
 
-	if summaries[1].ExeName != "beta" {
-		t.Errorf("summaries[1].ExeName = %q, want %q", summaries[1].ExeName, "beta")
+	if summaries[1].Name != "beta" {
+		t.Errorf("summaries[1].Name = %q, want %q", summaries[1].Name, "beta")
 	}
 	if summaries[1].DailyBudgetMinutes != 120 {
 		t.Errorf("beta DailyBudgetMinutes = %d, want 120", summaries[1].DailyBudgetMinutes)
@@ -268,5 +270,104 @@ func TestGetUsageSummary(t *testing.T) {
 	}
 	if summaries[1].RemainingMinutes != 90 {
 		t.Errorf("beta RemainingMinutes = %d, want 90", summaries[1].RemainingMinutes)
+	}
+}
+
+func TestRecordUsageMultipleGroups(t *testing.T) {
+	s := server.NewStore()
+	// Two groups both contain the same process "shared.exe"
+	_, _ = s.AddGroup("group-a", "shared.exe", 60*time.Minute)
+	_, _ = s.AddGroup("group-b", "shared.exe", 120*time.Minute)
+
+	err := s.RecordUsage("shared.exe", 45, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	ga, _ := s.GetGroup("group-a")
+	if ga.UsedToday != 45*time.Second {
+		t.Errorf("group-a UsedToday = %v, want %v", ga.UsedToday, 45*time.Second)
+	}
+	gb, _ := s.GetGroup("group-b")
+	if gb.UsedToday != 45*time.Second {
+		t.Errorf("group-b UsedToday = %v, want %v", gb.UsedToday, 45*time.Second)
+	}
+}
+
+func TestPersistenceMigration(t *testing.T) {
+	fp := filepath.Join(t.TempDir(), "legacy.json")
+
+	// Write old-format JSON with "apps" key
+	oldData := map[string]any{
+		"apps": map[string]any{
+			"chrome.exe": map[string]any{
+				"exe_name":        "chrome.exe",
+				"daily_budget_ns": int64(60 * time.Minute),
+				"used_today_ns":   int64(10 * time.Minute),
+				"last_reset_date": "2025-01-01",
+			},
+			"firefox.exe": map[string]any{
+				"exe_name":        "firefox.exe",
+				"daily_budget_ns": int64(120 * time.Minute),
+				"used_today_ns":   int64(0),
+				"last_reset_date": "",
+			},
+		},
+	}
+	b, err := json.Marshal(oldData)
+	if err != nil {
+		t.Fatalf("failed to marshal old data: %v", err)
+	}
+	if err := os.WriteFile(fp, b, 0o644); err != nil {
+		t.Fatalf("failed to write old file: %v", err)
+	}
+
+	// Load with NewStoreWithFile — should migrate
+	s := server.NewStoreWithFile(fp)
+	groups := s.ListGroups()
+	if len(groups) != 2 {
+		t.Fatalf("expected 2 groups after migration, got %d", len(groups))
+	}
+
+	g, err := s.GetGroup("chrome.exe")
+	if err != nil {
+		t.Fatalf("chrome.exe not found after migration: %v", err)
+	}
+	if g.Name != "chrome.exe" {
+		t.Errorf("Name = %q, want %q", g.Name, "chrome.exe")
+	}
+	if g.DailyBudget != 60*time.Minute {
+		t.Errorf("DailyBudget = %v, want %v", g.DailyBudget, 60*time.Minute)
+	}
+	if g.UsedToday != 10*time.Minute {
+		t.Errorf("UsedToday = %v, want %v", g.UsedToday, 10*time.Minute)
+	}
+	if len(g.Processes) != 1 || g.Processes[0] != "chrome.exe" {
+		t.Errorf("Processes = %v, want [chrome.exe]", g.Processes)
+	}
+}
+
+func TestGroupWithMultipleProcesses(t *testing.T) {
+	s := server.NewStore()
+	// Create group with one process
+	_, err := s.AddGroup("browsers", "chrome.exe", 60*time.Minute)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Update to have multiple processes
+	_, err = s.UpdateGroup("browsers", 60*time.Minute, []string{"chrome.exe", "firefox.exe", "edge.exe"})
+	if err != nil {
+		t.Fatalf("unexpected error on update: %v", err)
+	}
+
+	// Record usage for each process
+	_ = s.RecordUsage("chrome.exe", 10, 0)
+	_ = s.RecordUsage("firefox.exe", 20, 0)
+	_ = s.RecordUsage("edge.exe", 30, 0)
+
+	g, _ := s.GetGroup("browsers")
+	if g.UsedToday != 60*time.Second {
+		t.Errorf("UsedToday = %v, want %v", g.UsedToday, 60*time.Second)
 	}
 }

@@ -20,23 +20,23 @@ func TestIntegrationAddAppThenAgentPollsConfig(t *testing.T) {
 	ts, client := setupTestServer()
 	defer ts.Close()
 
-	_, err := client.AddApp(mockclient.AddAppRequest{ExeName: "chrome.exe", DailyBudgetMinutes: 60})
+	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "chrome.exe", Process: "chrome.exe", DailyBudgetMinutes: 60})
 	if err != nil {
-		t.Fatalf("AddApp failed: %v", err)
+		t.Fatalf("AddGroup failed: %v", err)
 	}
 
 	configResp, err := client.GetConfig()
 	if err != nil {
 		t.Fatalf("GetConfig failed: %v", err)
 	}
-	if len(configResp.Apps) != 1 {
-		t.Fatalf("expected 1 config, got %d", len(configResp.Apps))
+	if len(configResp.Groups) != 1 {
+		t.Fatalf("expected 1 config, got %d", len(configResp.Groups))
 	}
-	if configResp.Apps[0].ExeName != "chrome.exe" {
-		t.Errorf("expected exe_name chrome.exe, got %s", configResp.Apps[0].ExeName)
+	if configResp.Groups[0].Name != "chrome.exe" {
+		t.Errorf("expected name chrome.exe, got %s", configResp.Groups[0].Name)
 	}
-	if configResp.Apps[0].DailyBudgetMinutes != 60 {
-		t.Errorf("expected budget 60, got %d", configResp.Apps[0].DailyBudgetMinutes)
+	if configResp.Groups[0].DailyBudgetMinutes != 60 {
+		t.Errorf("expected budget 60, got %d", configResp.Groups[0].DailyBudgetMinutes)
 	}
 }
 
@@ -44,9 +44,9 @@ func TestIntegrationAgentPushesUsageThenManagerViews(t *testing.T) {
 	ts, client := setupTestServer()
 	defer ts.Close()
 
-	_, err := client.AddApp(mockclient.AddAppRequest{ExeName: "firefox.exe", DailyBudgetMinutes: 120})
+	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "firefox.exe", Process: "firefox.exe", DailyBudgetMinutes: 120})
 	if err != nil {
-		t.Fatalf("AddApp failed: %v", err)
+		t.Fatalf("AddGroup failed: %v", err)
 	}
 
 	err = client.PushUsage([]mockclient.UsageReport{
@@ -75,25 +75,25 @@ func TestIntegrationUpdateBudgetThenAgentPolls(t *testing.T) {
 	ts, client := setupTestServer()
 	defer ts.Close()
 
-	_, err := client.AddApp(mockclient.AddAppRequest{ExeName: "slack.exe", DailyBudgetMinutes: 30})
+	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "slack.exe", Process: "slack.exe", DailyBudgetMinutes: 30})
 	if err != nil {
-		t.Fatalf("AddApp failed: %v", err)
+		t.Fatalf("AddGroup failed: %v", err)
 	}
 
-	_, err = client.UpdateApp("slack.exe", mockclient.UpdateBudgetRequest{DailyBudgetMinutes: 90})
+	_, err = client.UpdateGroup("slack.exe", mockclient.UpdateGroupRequest{DailyBudgetMinutes: 90, Processes: []string{"slack.exe"}})
 	if err != nil {
-		t.Fatalf("UpdateApp failed: %v", err)
+		t.Fatalf("UpdateGroup failed: %v", err)
 	}
 
 	configResp, err := client.GetConfig()
 	if err != nil {
 		t.Fatalf("GetConfig failed: %v", err)
 	}
-	if len(configResp.Apps) != 1 {
-		t.Fatalf("expected 1 config, got %d", len(configResp.Apps))
+	if len(configResp.Groups) != 1 {
+		t.Fatalf("expected 1 config, got %d", len(configResp.Groups))
 	}
-	if configResp.Apps[0].DailyBudgetMinutes != 90 {
-		t.Errorf("expected budget 90, got %d", configResp.Apps[0].DailyBudgetMinutes)
+	if configResp.Groups[0].DailyBudgetMinutes != 90 {
+		t.Errorf("expected budget 90, got %d", configResp.Groups[0].DailyBudgetMinutes)
 	}
 }
 
@@ -101,22 +101,22 @@ func TestIntegrationDeleteAppThenAgentPolls(t *testing.T) {
 	ts, client := setupTestServer()
 	defer ts.Close()
 
-	_, err := client.AddApp(mockclient.AddAppRequest{ExeName: "discord.exe", DailyBudgetMinutes: 45})
+	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "discord.exe", Process: "discord.exe", DailyBudgetMinutes: 45})
 	if err != nil {
-		t.Fatalf("AddApp failed: %v", err)
+		t.Fatalf("AddGroup failed: %v", err)
 	}
 
-	err = client.DeleteApp("discord.exe")
+	err = client.DeleteGroup("discord.exe")
 	if err != nil {
-		t.Fatalf("DeleteApp failed: %v", err)
+		t.Fatalf("DeleteGroup failed: %v", err)
 	}
 
 	configResp, err := client.GetConfig()
 	if err != nil {
 		t.Fatalf("GetConfig failed: %v", err)
 	}
-	if len(configResp.Apps) != 0 {
-		t.Errorf("expected 0 configs after delete, got %d", len(configResp.Apps))
+	if len(configResp.Groups) != 0 {
+		t.Errorf("expected 0 configs after delete, got %d", len(configResp.Groups))
 	}
 }
 
@@ -136,9 +136,9 @@ func TestIntegrationFullSession(t *testing.T) {
 	ts, client := setupTestServer()
 	defer ts.Close()
 
-	_, err := client.AddApp(mockclient.AddAppRequest{ExeName: "game.exe", DailyBudgetMinutes: 120})
+	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "game.exe", Process: "game.exe", DailyBudgetMinutes: 120})
 	if err != nil {
-		t.Fatalf("AddApp failed: %v", err)
+		t.Fatalf("AddGroup failed: %v", err)
 	}
 
 	err = client.PushUsage([]mockclient.UsageReport{
@@ -173,11 +173,11 @@ func TestIntegrationFullSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetConfig failed: %v", err)
 	}
-	if len(configResp.Apps) != 1 {
-		t.Fatalf("expected 1 config, got %d", len(configResp.Apps))
+	if len(configResp.Groups) != 1 {
+		t.Fatalf("expected 1 config, got %d", len(configResp.Groups))
 	}
-	if configResp.Apps[0].DailyBudgetMinutes != 120 {
-		t.Errorf("expected budget still 120, got %d", configResp.Apps[0].DailyBudgetMinutes)
+	if configResp.Groups[0].DailyBudgetMinutes != 120 {
+		t.Errorf("expected budget still 120, got %d", configResp.Groups[0].DailyBudgetMinutes)
 	}
 }
 
