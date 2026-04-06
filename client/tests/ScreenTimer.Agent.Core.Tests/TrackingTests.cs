@@ -10,11 +10,12 @@ public class TrackingTests
     private static AgentState CreateState(string date, params (string exe, int budgetMinutes)[] apps)
     {
         var state = new AgentState { CurrentDate = date, LastUsageFlushTime = BaseTime };
-        var rules = new List<AppRule>();
+        var rules = new List<GroupRule>();
         foreach (var (exe, budget) in apps)
         {
             state.Apps[exe] = new AppUsageState();
-            rules.Add(new AppRule { ExeName = exe, DailyBudgetMinutes = budget });
+            state.GroupUsage[exe] = new GroupUsageState();
+            rules.Add(new GroupRule { Name = exe, Processes = new List<string> { exe }, DailyBudgetMinutes = budget });
         }
         state.CurrentRules = rules;
         return state;

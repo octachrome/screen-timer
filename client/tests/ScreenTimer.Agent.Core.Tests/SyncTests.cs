@@ -8,7 +8,7 @@ public class SyncTests
 {
     private static readonly DateTimeOffset BaseTime = new(2026, 4, 1, 10, 0, 0, TimeSpan.Zero);
 
-    private static AgentState CreateState(List<AppRule>? rules = null)
+    private static AgentState CreateState(List<GroupRule>? rules = null)
     {
         var state = new AgentState { CurrentDate = "2026-04-01" };
         if (rules is not null)
@@ -22,10 +22,10 @@ public class SyncTests
     public void NewConfig_Adds_AppUsageState_For_New_Apps()
     {
         var state = new AgentState { CurrentDate = "2026-04-01" };
-        var rules = new List<AppRule>
+        var rules = new List<GroupRule>
         {
-            new() { ExeName = "game.exe", DailyBudgetMinutes = 60 },
-            new() { ExeName = "browser.exe", DailyBudgetMinutes = 120 }
+            new() { Name = "game.exe", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 60 },
+            new() { Name = "browser.exe", Processes = new List<string> { "browser.exe" }, DailyBudgetMinutes = 120 }
         };
 
         AgentEngine.Tick(state, new ForegroundSample(null, BaseTime), rules);
@@ -38,16 +38,16 @@ public class SyncTests
     [Fact]
     public void RemovedApp_From_Config_Removes_Its_AppUsageState()
     {
-        var state = CreateState(new List<AppRule>
+        var state = CreateState(new List<GroupRule>
         {
-            new() { ExeName = "game.exe", DailyBudgetMinutes = 60 },
-            new() { ExeName = "browser.exe", DailyBudgetMinutes = 120 }
+            new() { Name = "game.exe", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 60 },
+            new() { Name = "browser.exe", Processes = new List<string> { "browser.exe" }, DailyBudgetMinutes = 120 }
         });
 
         // Now apply config without browser.exe
-        var newRules = new List<AppRule>
+        var newRules = new List<GroupRule>
         {
-            new() { ExeName = "game.exe", DailyBudgetMinutes = 60 }
+            new() { Name = "game.exe", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 60 }
         };
         AgentEngine.Tick(state, new ForegroundSample(null, BaseTime.AddSeconds(1)), newRules);
 
@@ -59,9 +59,9 @@ public class SyncTests
     [Fact]
     public void ChangedBudget_Updates_Rule_And_Fires_Notification_At_New_Threshold()
     {
-        var rules = new List<AppRule>
+        var rules = new List<GroupRule>
         {
-            new() { ExeName = "game.exe", DailyBudgetMinutes = 60 }
+            new() { Name = "game.exe", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 60 }
         };
         var state = CreateState(rules);
 
@@ -73,9 +73,9 @@ public class SyncTests
         // With 60-min budget, remaining = 600s = 10 min — at threshold but Tick hasn't run yet
         // Now change budget to 51 minutes (3060s). After 1s elapsed, used = 3001s, remaining = 59s
         // That should trigger 10min, 5min, and 1min notifications
-        var newRules = new List<AppRule>
+        var newRules = new List<GroupRule>
         {
-            new() { ExeName = "game.exe", DailyBudgetMinutes = 51 }
+            new() { Name = "game.exe", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 51 }
         };
 
         var result = AgentEngine.Tick(state, new ForegroundSample("game.exe", BaseTime.AddSeconds(2)), newRules);
@@ -89,9 +89,9 @@ public class SyncTests
     [Fact]
     public void MarkUsagePushSucceeded_Clears_Only_Uploaded_Portion()
     {
-        var rules = new List<AppRule>
+        var rules = new List<GroupRule>
         {
-            new() { ExeName = "game.exe", DailyBudgetMinutes = 60 }
+            new() { Name = "game.exe", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 60 }
         };
         var state = CreateState(rules);
 
@@ -115,9 +115,9 @@ public class SyncTests
     [Fact]
     public void FailedPush_Preserves_Pending_Usage()
     {
-        var rules = new List<AppRule>
+        var rules = new List<GroupRule>
         {
-            new() { ExeName = "game.exe", DailyBudgetMinutes = 60 }
+            new() { Name = "game.exe", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 60 }
         };
         var state = CreateState(rules);
 
@@ -140,9 +140,9 @@ public class SyncTests
     [Fact]
     public void UsageFlush_Generates_PushUsageCommand_When_Pending_And_Interval_Elapsed()
     {
-        var rules = new List<AppRule>
+        var rules = new List<GroupRule>
         {
-            new() { ExeName = "game.exe", DailyBudgetMinutes = 60 }
+            new() { Name = "game.exe", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 60 }
         };
         var state = CreateState(rules);
 
@@ -165,9 +165,9 @@ public class SyncTests
     [Fact]
     public void UsageFlush_Does_Not_Push_When_No_Pending_Usage()
     {
-        var rules = new List<AppRule>
+        var rules = new List<GroupRule>
         {
-            new() { ExeName = "game.exe", DailyBudgetMinutes = 60 }
+            new() { Name = "game.exe", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 60 }
         };
         var state = CreateState(rules);
         state.LastUsageFlushTime = BaseTime;

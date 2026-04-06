@@ -103,14 +103,14 @@ public class GoServerContractTests : IAsyncLifetime
         if (!IsGoAvailable()) return;
 
         // Add an app via the UI API
-        await _rawHttp!.PostAsJsonAsync("/api/apps", new { exe_name = "game.exe", daily_budget_minutes = 60 });
+        await _rawHttp!.PostAsJsonAsync("/api/apps", new { name = "game.exe", processes = new[] { "game.exe" }, daily_budget_minutes = 60 });
 
         // Call agent config endpoint via C# client
         var configResponse = await _agentClient!.GetConfigAsync();
 
-        Assert.Single(configResponse.Apps);
-        Assert.Equal("game.exe", configResponse.Apps[0].ExeName);
-        Assert.Equal(60, configResponse.Apps[0].DailyBudgetMinutes);
+        Assert.Single(configResponse.Groups);
+        Assert.Equal("game.exe", configResponse.Groups[0].Name);
+        Assert.Equal(60, configResponse.Groups[0].DailyBudgetMinutes);
     }
 
     [Fact]
@@ -119,7 +119,7 @@ public class GoServerContractTests : IAsyncLifetime
         if (!IsGoAvailable()) return;
 
         // Add an app first
-        await _rawHttp!.PostAsJsonAsync("/api/apps", new { exe_name = "browser.exe", daily_budget_minutes = 120 });
+        await _rawHttp!.PostAsJsonAsync("/api/apps", new { name = "browser.exe", processes = new[] { "browser.exe" }, daily_budget_minutes = 120 });
 
         // Push usage via C# client
         var push = new UsagePushDto
@@ -136,7 +136,7 @@ public class GoServerContractTests : IAsyncLifetime
         var doc = JsonDocument.Parse(body);
         var apps = doc.RootElement.EnumerateArray().ToList();
 
-        var browserApp = apps.First(a => a.GetProperty("exe_name").GetString() == "browser.exe");
+        var browserApp = apps.First(a => a.GetProperty("name").GetString() == "browser.exe");
         Assert.Equal(5, browserApp.GetProperty("used_today_minutes").GetInt32());
     }
 
@@ -147,7 +147,7 @@ public class GoServerContractTests : IAsyncLifetime
 
         var configResponse = await _agentClient!.GetConfigAsync();
 
-        Assert.Empty(configResponse.Apps);
+        Assert.Empty(configResponse.Groups);
     }
 
     private async Task WaitForServerReady()

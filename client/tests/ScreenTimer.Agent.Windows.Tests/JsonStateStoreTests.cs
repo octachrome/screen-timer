@@ -52,29 +52,21 @@ public class JsonStateStoreTests : IDisposable
             LastConfigPollTime = new DateTimeOffset(2026, 4, 1, 10, 29, 0, TimeSpan.Zero),
             LastUsageFlushTime = new DateTimeOffset(2026, 4, 1, 10, 29, 30, TimeSpan.Zero),
             CurrentDate = "2026-04-01",
-            CurrentRules = new List<AppRule>
+            CurrentRules = new List<GroupRule>
             {
-                new() { ExeName = "game.exe", DailyBudgetMinutes = 60 },
-                new() { ExeName = "browser.exe", DailyBudgetMinutes = 120 }
+                new() { Name = "game.exe", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 60 },
+                new() { Name = "browser.exe", Processes = new List<string> { "browser.exe" }, DailyBudgetMinutes = 120 }
             }
         };
         state.Apps["game.exe"] = new AppUsageState
         {
             UsedTodaySeconds = 1500,
-            PendingUploadSeconds = 45.5,
-            Sent10Min = true,
-            Sent5Min = false,
-            Sent1Min = false,
-            Exhausted = false
+            PendingUploadSeconds = 45.5
         };
         state.Apps["browser.exe"] = new AppUsageState
         {
             UsedTodaySeconds = 300,
-            PendingUploadSeconds = 10,
-            Sent10Min = false,
-            Sent5Min = false,
-            Sent1Min = false,
-            Exhausted = false
+            PendingUploadSeconds = 10
         };
 
         _store.Save(state);
@@ -88,15 +80,13 @@ public class JsonStateStoreTests : IDisposable
         Assert.Equal("2026-04-01", restored.CurrentDate);
 
         Assert.Equal(2, restored.CurrentRules.Count);
-        Assert.Equal("game.exe", restored.CurrentRules[0].ExeName);
+        Assert.Equal("game.exe", restored.CurrentRules[0].Name);
         Assert.Equal(60, restored.CurrentRules[0].DailyBudgetMinutes);
 
         Assert.Equal(2, restored.Apps.Count);
         var gameApp = restored.Apps["game.exe"];
         Assert.Equal(1500, gameApp.UsedTodaySeconds);
         Assert.Equal(45.5, gameApp.PendingUploadSeconds);
-        Assert.True(gameApp.Sent10Min);
-        Assert.False(gameApp.Sent5Min);
     }
 
     [Fact]

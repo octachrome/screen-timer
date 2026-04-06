@@ -10,11 +10,12 @@ public class NotificationTests
     private static AgentState CreateState(string date, params (string exe, int budgetMinutes, double usedSeconds)[] apps)
     {
         var state = new AgentState { CurrentDate = date };
-        var rules = new List<AppRule>();
+        var rules = new List<GroupRule>();
         foreach (var (exe, budget, used) in apps)
         {
             state.Apps[exe] = new AppUsageState { UsedTodaySeconds = used };
-            rules.Add(new AppRule { ExeName = exe, DailyBudgetMinutes = budget });
+            state.GroupUsage[exe] = new GroupUsageState();
+            rules.Add(new GroupRule { Name = exe, Processes = new List<string> { exe }, DailyBudgetMinutes = budget });
         }
         state.CurrentRules = rules;
         state.LastUsageFlushTime = BaseTime;
@@ -37,7 +38,7 @@ public class NotificationTests
         var result = AgentEngine.Tick(state, Sample("game.exe", BaseTime.AddSeconds(1)), null);
 
         var toast = Assert.Single(result.Commands.OfType<ShowToastCommand>());
-        Assert.Equal("game.exe", toast.ExeName);
+        Assert.Equal("game.exe", toast.Label);
         Assert.Equal(10, toast.RemainingMinutes);
     }
 
@@ -48,7 +49,7 @@ public class NotificationTests
         var state = CreateState("2025-06-15", ("game.exe", 20, 899));
         state.LastTickTime = BaseTime;
         state.LastForegroundExe = "game.exe";
-        state.Apps["game.exe"].Sent10Min = true; // already sent
+        state.GroupUsage["game.exe"].Sent10Min = true; // already sent
 
         var result = AgentEngine.Tick(state, Sample("game.exe", BaseTime.AddSeconds(1)), null);
 
@@ -63,8 +64,8 @@ public class NotificationTests
         var state = CreateState("2025-06-15", ("game.exe", 20, 1139));
         state.LastTickTime = BaseTime;
         state.LastForegroundExe = "game.exe";
-        state.Apps["game.exe"].Sent10Min = true;
-        state.Apps["game.exe"].Sent5Min = true;
+        state.GroupUsage["game.exe"].Sent10Min = true;
+        state.GroupUsage["game.exe"].Sent5Min = true;
 
         var result = AgentEngine.Tick(state, Sample("game.exe", BaseTime.AddSeconds(1)), null);
 
@@ -79,7 +80,7 @@ public class NotificationTests
         var state = CreateState("2025-06-15", ("game.exe", 20, 600));
         state.LastTickTime = BaseTime;
         state.LastForegroundExe = "game.exe";
-        state.Apps["game.exe"].Sent10Min = true;
+        state.GroupUsage["game.exe"].Sent10Min = true;
 
         var result = AgentEngine.Tick(state, Sample("game.exe", BaseTime.AddSeconds(1)), null);
 

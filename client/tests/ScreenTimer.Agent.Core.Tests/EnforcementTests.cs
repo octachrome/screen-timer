@@ -9,12 +9,13 @@ public class EnforcementTests
 
     private static AgentState CreateState(string exeName, int budgetMinutes, double usedSeconds)
     {
-        var rule = new AppRule { ExeName = exeName, DailyBudgetMinutes = budgetMinutes };
+        var rule = new GroupRule { Name = exeName, Processes = new List<string> { exeName }, DailyBudgetMinutes = budgetMinutes };
         var state = new AgentState
         {
             CurrentDate = BaseTime.LocalDateTime.Date.ToString("yyyy-MM-dd"),
             CurrentRules = [rule],
             Apps = { [exeName] = new AppUsageState { UsedTodaySeconds = usedSeconds } },
+            GroupUsage = { [exeName] = new GroupUsageState() },
             LastUsageFlushTime = BaseTime,
         };
         return state;
@@ -43,7 +44,7 @@ public class EnforcementTests
         var state = CreateState("game.exe", budgetMinutes: 1, usedSeconds: 60);
         state.LastForegroundExe = null;
         state.LastTickTime = BaseTime;
-        state.Apps["game.exe"].Exhausted = true;
+        state.GroupUsage["game.exe"].Exhausted = true;
         state.LastUsageFlushTime = BaseTime;
 
         // Exhausted app reappears in foreground
@@ -97,6 +98,6 @@ public class EnforcementTests
         var sample = new ForegroundSample("game.exe", BaseTime.AddSeconds(5));
         var result = AgentEngine.Tick(state, sample, null);
 
-        Assert.True(result.UpdatedState.Apps["game.exe"].Exhausted);
+        Assert.True(result.UpdatedState.GroupUsage["game.exe"].Exhausted);
     }
 }

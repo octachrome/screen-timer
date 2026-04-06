@@ -15,10 +15,10 @@ public class ResetTests
             CurrentDate = Yesterday.LocalDateTime.Date.ToString("yyyy-MM-dd"),
             LastTickTime = Yesterday,
             LastForegroundExe = null,
-            CurrentRules = new List<AppRule>
+            CurrentRules = new List<GroupRule>
             {
-                new() { ExeName = "game.exe", DailyBudgetMinutes = 60 },
-                new() { ExeName = "social.exe", DailyBudgetMinutes = 30 },
+                new() { Name = "game.exe", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 60 },
+                new() { Name = "social.exe", Processes = new List<string> { "social.exe" }, DailyBudgetMinutes = 30 },
             },
             Apps = new Dictionary<string, AppUsageState>(StringComparer.OrdinalIgnoreCase)
             {
@@ -26,15 +26,24 @@ public class ResetTests
                 {
                     UsedTodaySeconds = 3000,
                     PendingUploadSeconds = 120,
-                    Sent10Min = true,
-                    Sent5Min = true,
-                    Sent1Min = false,
-                    Exhausted = false,
                 },
                 ["social.exe"] = new AppUsageState
                 {
                     UsedTodaySeconds = 1800,
                     PendingUploadSeconds = 45,
+                },
+            },
+            GroupUsage = new Dictionary<string, GroupUsageState>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["game.exe"] = new GroupUsageState
+                {
+                    Sent10Min = true,
+                    Sent5Min = true,
+                    Sent1Min = false,
+                    Exhausted = false,
+                },
+                ["social.exe"] = new GroupUsageState
+                {
                     Sent10Min = true,
                     Sent5Min = true,
                     Sent1Min = true,
@@ -65,12 +74,12 @@ public class ResetTests
 
         var result = AgentEngine.Tick(state, sample, null);
 
-        var game = result.UpdatedState.Apps["game.exe"];
+        var game = result.UpdatedState.GroupUsage["game.exe"];
         Assert.False(game.Sent10Min);
         Assert.False(game.Sent5Min);
         Assert.False(game.Sent1Min);
 
-        var social = result.UpdatedState.Apps["social.exe"];
+        var social = result.UpdatedState.GroupUsage["social.exe"];
         Assert.False(social.Sent10Min);
         Assert.False(social.Sent5Min);
         Assert.False(social.Sent1Min);
@@ -84,8 +93,8 @@ public class ResetTests
 
         var result = AgentEngine.Tick(state, sample, null);
 
-        Assert.False(result.UpdatedState.Apps["game.exe"].Exhausted);
-        Assert.False(result.UpdatedState.Apps["social.exe"].Exhausted);
+        Assert.False(result.UpdatedState.GroupUsage["game.exe"].Exhausted);
+        Assert.False(result.UpdatedState.GroupUsage["social.exe"].Exhausted);
     }
 
     [Fact]

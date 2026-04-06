@@ -8,7 +8,7 @@ public static class AgentEngine
     private static readonly TimeSpan UsageFlushInterval = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan ConfigPollInterval = TimeSpan.FromSeconds(30);
 
-    public static EngineResult Tick(AgentState state, ForegroundSample sample, List<AppRule>? newRules, DateTimeOffset? testPopupAt = null)
+    public static EngineResult Tick(AgentState state, ForegroundSample sample, List<GroupRule>? newRules, DateTimeOffset? testPopupAt = null)
     {
         var commands = new List<EngineCommand>();
         var now = sample.Timestamp;
@@ -54,42 +54,56 @@ public static class AgentEngine
         state.LastForegroundExe = currentTrackedExe;
         state.LastTickTime = now;
 
-        // Check notifications and enforcement for all tracked apps
+        // Check notifications and enforcement for all groups
         foreach (var rule in state.CurrentRules)
         {
-            if (!state.Apps.TryGetValue(rule.ExeName, out var appState))
+            if (!state.GroupUsage.TryGetValue(rule.Name, out var groupState))
                 continue;
 
-            var budgetSeconds = rule.DailyBudgetMinutes * 60.0;
-            var remainingSeconds = budgetSeconds - appState.UsedTodaySeconds;
-
-            // Notification thresholds (fire only once each, only for current foreground app)
-            if (string.Equals(currentTrackedExe, rule.ExeName, StringComparison.OrdinalIgnoreCase))
+            // Sum usage across all member processes
+            var totalUsedSeconds = 0.0;
+            foreach (var process in rule.Processes)
             {
-                if (!appState.Sent10Min && remainingSeconds <= 600 && remainingSeconds > 0)
+                if (state.Apps.TryGetValue(process, out var appState))
                 {
-                    appState.Sent10Min = true;
-                    commands.Add(new ShowToastCommand(rule.ExeName, 10));
-                }
-                if (!appState.Sent5Min && remainingSeconds <= 300 && remainingSeconds > 0)
-                {
-                    appState.Sent5Min = true;
-                    commands.Add(new ShowToastCommand(rule.ExeName, 5));
-                }
-                if (!appState.Sent1Min && remainingSeconds <= 60 && remainingSeconds > 0)
-                {
-                    appState.Sent1Min = true;
-                    commands.Add(new ShowToastCommand(rule.ExeName, 1));
+                    totalUsedSeconds += appState.UsedTodaySeconds;
                 }
             }
 
-            // Enforcement: force-close when budget exhausted and app is in foreground
+            var budgetSeconds = rule.DailyBudgetMinutes * 60.0;
+            var remainingSeconds = budgetSeconds - totalUsedSeconds;
+
+            // Check if current foreground exe is a member of this group
+            var currentExeInGroup = currentTrackedExe is not null &&
+                rule.Processes.Any(p => string.Equals(p, currentTrackedExe, StringComparison.OrdinalIgnoreCase));
+
+            // Notification thresholds (fire only once each, only when a member process is in foreground)
+            if (currentExeInGroup)
+            {
+                if (!groupState.Sent10Min && remainingSeconds <= 600 && remainingSeconds > 0)
+                {
+                    groupState.Sent10Min = true;
+                    commands.Add(new ShowToastCommand(rule.Name, 10));
+                }
+                if (!groupState.Sent5Min && remainingSeconds <= 300 && remainingSeconds > 0)
+                {
+                    groupState.Sent5Min = true;
+                    commands.Add(new ShowToastCommand(rule.Name, 5));
+                }
+                if (!groupState.Sent1Min && remainingSeconds <= 60 && remainingSeconds > 0)
+                {
+                    groupState.Sent1Min = true;
+                    commands.Add(new ShowToastCommand(rule.Name, 1));
+                }
+            }
+
+            // Enforcement: force-close when budget exhausted and a member is in foreground
             if (remainingSeconds <= 0)
             {
-                appState.Exhausted = true;
-                if (string.Equals(currentTrackedExe, rule.ExeName, StringComparison.OrdinalIgnoreCase))
+                groupState.Exhausted = true;
+                if (currentExeInGroup)
                 {
-                    commands.Add(new ForceCloseCommand(rule.ExeName));
+                    commands.Add(new ForceCloseCommand(currentTrackedExe!));
                 }
             }
         }
@@ -132,32 +146,61 @@ public static class AgentEngine
         foreach (var app in state.Apps.Values)
         {
             app.UsedTodaySeconds = 0;
-            app.Sent10Min = false;
-            app.Sent5Min = false;
-            app.Sent1Min = false;
-            app.Exhausted = false;
+        }
+        foreach (var group in state.GroupUsage.Values)
+        {
+            group.Sent10Min = false;
+            group.Sent5Min = false;
+            group.Sent1Min = false;
+            group.Exhausted = false;
         }
     }
 
-    private static void ApplyConfigRules(AgentState state, List<AppRule> newRules)
+    private static void ApplyConfigRules(AgentState state, List<GroupRule> newRules)
     {
         state.CurrentRules = newRules;
 
-        // Add AppUsageState for new apps
+        // Collect all process names referenced by any group
+        var allProcesses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var rule in newRules)
         {
-            if (!state.Apps.ContainsKey(rule.ExeName))
+            foreach (var process in rule.Processes)
             {
-                state.Apps[rule.ExeName] = new AppUsageState();
+                allProcesses.Add(process);
             }
         }
 
-        // Remove apps no longer in config
-        var ruleSet = new HashSet<string>(newRules.Select(r => r.ExeName), StringComparer.OrdinalIgnoreCase);
-        var toRemove = state.Apps.Keys.Where(k => !ruleSet.Contains(k)).ToList();
+        // Add AppUsageState for new processes
+        foreach (var process in allProcesses)
+        {
+            if (!state.Apps.ContainsKey(process))
+            {
+                state.Apps[process] = new AppUsageState();
+            }
+        }
+
+        // Remove processes no longer in any group
+        var toRemove = state.Apps.Keys.Where(k => !allProcesses.Contains(k)).ToList();
         foreach (var key in toRemove)
         {
             state.Apps.Remove(key);
+        }
+
+        // Add GroupUsageState for new groups
+        var groupNames = new HashSet<string>(newRules.Select(r => r.Name), StringComparer.OrdinalIgnoreCase);
+        foreach (var name in groupNames)
+        {
+            if (!state.GroupUsage.ContainsKey(name))
+            {
+                state.GroupUsage[name] = new GroupUsageState();
+            }
+        }
+
+        // Remove groups no longer in config
+        var groupsToRemove = state.GroupUsage.Keys.Where(k => !groupNames.Contains(k)).ToList();
+        foreach (var key in groupsToRemove)
+        {
+            state.GroupUsage.Remove(key);
         }
     }
 

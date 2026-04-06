@@ -21,7 +21,7 @@ public class FakeProbe : IForegroundWindowProbe
 
 public class FakeApiClient : IAgentApiClient
 {
-    public List<AppConfigDto> Configs { get; set; } = new();
+    public List<GroupConfigDto> Configs { get; set; } = new();
     public string? TestPopupAt { get; set; }
     public List<UsagePushDto> PushedUsage { get; } = new();
     public bool ShouldFail { get; set; }
@@ -29,7 +29,7 @@ public class FakeApiClient : IAgentApiClient
     public Task<AgentConfigResponseDto> GetConfigAsync(CancellationToken ct = default)
     {
         if (ShouldFail) throw new HttpRequestException("Fake network error");
-        return Task.FromResult(new AgentConfigResponseDto { Apps = Configs, TestPopupAt = TestPopupAt });
+        return Task.FromResult(new AgentConfigResponseDto { Groups = Configs, TestPopupAt = TestPopupAt });
     }
 
     public Task PushUsageAsync(UsagePushDto push, CancellationToken ct = default)
@@ -42,8 +42,8 @@ public class FakeApiClient : IAgentApiClient
 
 public class FakeNotificationSink : INotificationSink
 {
-    public List<(string ExeName, int RemainingMinutes)> Toasts { get; } = new();
-    public void ShowToast(string exeName, int remainingMinutes) => Toasts.Add((exeName, remainingMinutes));
+    public List<(string Label, int RemainingMinutes)> Toasts { get; } = new();
+    public void ShowToast(string label, int remainingMinutes) => Toasts.Add((label, remainingMinutes));
 }
 
 public class FakeProcessController : IProcessController

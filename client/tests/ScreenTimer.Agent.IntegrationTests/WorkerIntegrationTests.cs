@@ -52,13 +52,13 @@ public class WorkerIntegrationTests
             {
                 ["game.exe"] = new AppUsageState { UsedTodaySeconds = 42.0 }
             },
-            CurrentRules = new() { new AppRule { ExeName = "game.exe", DailyBudgetMinutes = 120 } }
+            CurrentRules = new() { new GroupRule { Name = "game.exe", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 120 } }
         };
         _stateStore.StoredState = state;
 
         _apiClient.Configs = new()
         {
-            new AppConfigDto { ExeName = "game.exe", DailyBudgetMinutes = 120 }
+            new GroupConfigDto { Name = "game.exe", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 120 }
         };
         _probe.CurrentExe = "game.exe";
 
@@ -77,7 +77,7 @@ public class WorkerIntegrationTests
     {
         _apiClient.Configs = new()
         {
-            new AppConfigDto { ExeName = "game.exe", DailyBudgetMinutes = 120 }
+            new GroupConfigDto { Name = "game.exe", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 120 }
         };
         _probe.CurrentExe = "game.exe";
 
@@ -111,7 +111,7 @@ public class WorkerIntegrationTests
     {
         _apiClient.Configs = new()
         {
-            new AppConfigDto { ExeName = "game.exe", DailyBudgetMinutes = 1 }
+            new GroupConfigDto { Name = "game.exe", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 1 }
         };
         _probe.CurrentExe = "game.exe";
 
@@ -121,7 +121,7 @@ public class WorkerIntegrationTests
         // Use 10-min budget and preload near 10-min threshold instead.
         _apiClient.Configs = new()
         {
-            new AppConfigDto { ExeName = "game.exe", DailyBudgetMinutes = 1 }
+            new GroupConfigDto { Name = "game.exe", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 1 }
         };
 
         // Preload state with 50s used out of 60s budget so remaining = 10s.
@@ -137,13 +137,17 @@ public class WorkerIntegrationTests
             {
                 ["game.exe"] = new AppUsageState { UsedTodaySeconds = 50.0 }
             },
-            CurrentRules = new() { new AppRule { ExeName = "game.exe", DailyBudgetMinutes = 1 } }
+            GroupUsage = new(StringComparer.OrdinalIgnoreCase)
+            {
+                ["game.exe"] = new GroupUsageState()
+            },
+            CurrentRules = new() { new GroupRule { Name = "game.exe", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 1 } }
         };
 
         var worker = CreateWorker();
         await RunWorkerForAsync(worker, TimeSpan.FromSeconds(2));
 
-        Assert.Contains(_notifications.Toasts, t => t.ExeName == "game.exe" && t.RemainingMinutes == 1);
+        Assert.Contains(_notifications.Toasts, t => t.Label == "game.exe" && t.RemainingMinutes == 1);
     }
 
     [Fact]
@@ -151,7 +155,7 @@ public class WorkerIntegrationTests
     {
         _apiClient.Configs = new()
         {
-            new AppConfigDto { ExeName = "game.exe", DailyBudgetMinutes = 1 }
+            new GroupConfigDto { Name = "game.exe", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 1 }
         };
         _probe.CurrentExe = "game.exe";
 
@@ -167,13 +171,19 @@ public class WorkerIntegrationTests
             {
                 ["game.exe"] = new AppUsageState
                 {
-                    UsedTodaySeconds = 59.5,
+                    UsedTodaySeconds = 59.5
+                }
+            },
+            GroupUsage = new(StringComparer.OrdinalIgnoreCase)
+            {
+                ["game.exe"] = new GroupUsageState
+                {
                     Sent10Min = true,
                     Sent5Min = true,
                     Sent1Min = true
                 }
             },
-            CurrentRules = new() { new AppRule { ExeName = "game.exe", DailyBudgetMinutes = 1 } }
+            CurrentRules = new() { new GroupRule { Name = "game.exe", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 1 } }
         };
 
         var worker = CreateWorker();
@@ -197,7 +207,7 @@ public class WorkerIntegrationTests
     {
         _apiClient.Configs = new()
         {
-            new AppConfigDto { ExeName = "game.exe", DailyBudgetMinutes = 120 }
+            new GroupConfigDto { Name = "game.exe", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 120 }
         };
         _probe.CurrentExe = "game.exe";
 

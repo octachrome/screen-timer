@@ -13,9 +13,9 @@ public class AgentApiClientTests
     {
         var json = """
             {
-                "apps": [
-                    {"exe_name": "game.exe", "daily_budget_minutes": 60},
-                    {"exe_name": "browser.exe", "daily_budget_minutes": 120}
+                "groups": [
+                    {"name": "game.exe", "processes": ["game.exe"], "daily_budget_minutes": 60},
+                    {"name": "browser.exe", "processes": ["browser.exe"], "daily_budget_minutes": 120}
                 ]
             }
             """;
@@ -25,22 +25,24 @@ public class AgentApiClientTests
 
         var response = await client.GetConfigAsync();
 
-        Assert.Equal(2, response.Apps.Count);
-        Assert.Equal("game.exe", response.Apps[0].ExeName);
-        Assert.Equal(60, response.Apps[0].DailyBudgetMinutes);
-        Assert.Equal("browser.exe", response.Apps[1].ExeName);
-        Assert.Equal(120, response.Apps[1].DailyBudgetMinutes);
+        Assert.Equal(2, response.Groups.Count);
+        Assert.Equal("game.exe", response.Groups[0].Name);
+        Assert.Equal(60, response.Groups[0].DailyBudgetMinutes);
+        Assert.Contains("game.exe", response.Groups[0].Processes);
+        Assert.Equal("browser.exe", response.Groups[1].Name);
+        Assert.Equal(120, response.Groups[1].DailyBudgetMinutes);
+        Assert.Contains("browser.exe", response.Groups[1].Processes);
     }
 
     [Fact]
     public async Task GetConfigAsync_Returns_EmptyList_For_EmptyApps()
     {
-        var handler = new FakeHttpHandler("""{"apps": []}""", HttpStatusCode.OK);
+        var handler = new FakeHttpHandler("""{"groups": []}""", HttpStatusCode.OK);
         var client = CreateClient(handler);
 
         var response = await client.GetConfigAsync();
 
-        Assert.Empty(response.Apps);
+        Assert.Empty(response.Groups);
     }
 
     [Fact]
@@ -48,7 +50,7 @@ public class AgentApiClientTests
     {
         var json = """
             {
-                "apps": [],
+                "groups": [],
                 "test_popup_at": "2025-06-15T12:00:00Z"
             }
             """;
@@ -121,7 +123,7 @@ public class AgentApiClientTests
     [Fact]
     public async Task GetConfigAsync_GetsFromCorrectEndpoint()
     {
-        var handler = new FakeHttpHandler("""{"apps": []}""", HttpStatusCode.OK);
+        var handler = new FakeHttpHandler("""{"groups": []}""", HttpStatusCode.OK);
         var client = CreateClient(handler);
 
         await client.GetConfigAsync();

@@ -4,7 +4,7 @@ namespace ScreenTimer.Agent.Core.Engine;
 
 public abstract record EngineCommand;
 
-public sealed record ShowToastCommand(string ExeName, int RemainingMinutes) : EngineCommand;
+public sealed record ShowToastCommand(string Label, int RemainingMinutes) : EngineCommand;
 
 public sealed record PushUsageCommand(UsagePushDto Payload) : EngineCommand;
 

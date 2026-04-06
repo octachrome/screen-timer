@@ -83,7 +83,7 @@ public sealed class AgentWorker : BackgroundService
         }
 
         // Poll config if due (with backoff on failures)
-        List<AppRule>? newRules = null;
+        List<GroupRule>? newRules = null;
         DateTimeOffset? testPopupAt = null;
         var configInterval = GetBackoffInterval(_configPollInterval, _configFailures);
         if ((now - _state.LastConfigPollTime).TotalSeconds >= configInterval.TotalSeconds)
@@ -91,15 +91,16 @@ public sealed class AgentWorker : BackgroundService
             try
             {
                 var configResponse = await _apiClient.GetConfigAsync(ct);
-                newRules = configResponse.Apps.Select(c => new AppRule
+                newRules = configResponse.Groups.Select(g => new GroupRule
                 {
-                    ExeName = c.ExeName,
-                    DailyBudgetMinutes = c.DailyBudgetMinutes
+                    Name = g.Name,
+                    Processes = g.Processes,
+                    DailyBudgetMinutes = g.DailyBudgetMinutes
                 }).ToList();
                 if (DateTimeOffset.TryParse(configResponse.TestPopupAt, out var parsed))
                     testPopupAt = parsed;
                 _configFailures = 0;
-                _logger.LogDebug("Config polled: {Count} app(s)", newRules.Count);
+                _logger.LogDebug("Config polled: {Count} group(s)", newRules.Count);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -124,8 +125,8 @@ public sealed class AgentWorker : BackgroundService
         switch (command)
         {
             case ShowToastCommand toast:
-                _logger.LogInformation("Toast: {ExeName} — {Minutes} min remaining", toast.ExeName, toast.RemainingMinutes);
-                _notifications.ShowToast(toast.ExeName, toast.RemainingMinutes);
+                _logger.LogInformation("Toast: {Label} — {Minutes} min remaining", toast.Label, toast.RemainingMinutes);
+                _notifications.ShowToast(toast.Label, toast.RemainingMinutes);
                 break;
 
             case PushUsageCommand push:
