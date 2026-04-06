@@ -120,4 +120,36 @@ public class JsonStateStoreTests : IDisposable
 
         Assert.False(File.Exists(_filePath + ".tmp"));
     }
+
+    [Fact]
+    public void Load_ReturnsNull_WhenFileContainsOldFormatState()
+    {
+        // Old format had AppRule with ExeName instead of GroupRule with Name/Processes
+        var oldJson = """
+            {
+                "Apps": {
+                    "game.exe": { "UsedTodaySeconds": 100, "PendingUploadSeconds": 10, "Sent10Min": true, "Sent5Min": false, "Sent1Min": false, "Exhausted": false }
+                },
+                "CurrentRules": [
+                    { "ExeName": "game.exe", "DailyBudgetMinutes": 60 }
+                ],
+                "CurrentDate": "2026-04-01"
+            }
+            """;
+        File.WriteAllText(_filePath, oldJson);
+
+        var result = _store.Load();
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void Load_ReturnsNull_WhenFileContainsInvalidJson()
+    {
+        File.WriteAllText(_filePath, "not valid json {{{");
+
+        var result = _store.Load();
+
+        Assert.Null(result);
+    }
 }

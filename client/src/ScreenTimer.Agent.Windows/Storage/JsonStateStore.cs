@@ -29,8 +29,15 @@ public sealed class JsonStateStore : IStateStore
         if (!File.Exists(_filePath))
             return null;
 
-        var json = File.ReadAllText(_filePath);
-        return JsonSerializer.Deserialize<AgentState>(json, SerializerOptions);
+        try
+        {
+            var json = File.ReadAllText(_filePath);
+            return JsonSerializer.Deserialize<AgentState>(json, SerializerOptions);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     public void Save(AgentState state)
