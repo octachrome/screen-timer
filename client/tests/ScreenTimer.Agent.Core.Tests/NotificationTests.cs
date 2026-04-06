@@ -135,4 +135,57 @@ public class NotificationTests
 
         Assert.Empty(result.Commands.OfType<ShowToastCommand>());
     }
+
+    [Fact]
+    public void Notification_Uses_Group_Name_Not_Exe_Name()
+    {
+        var state = new AgentState
+        {
+            CurrentDate = "2025-06-15",
+            CurrentRules = new List<GroupRule>
+            {
+                new() { Name = "Gaming", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 20 }
+            },
+            LastUsageFlushTime = BaseTime,
+        };
+        state.Apps["game.exe"] = new AppUsageState { UsedTodaySeconds = 599 };
+        state.GroupUsage["Gaming"] = new GroupUsageState();
+        state.LastTickTime = BaseTime;
+        state.LastForegroundExe = "game.exe";
+
+        var result = AgentEngine.Tick(state, Sample("game.exe", BaseTime.AddSeconds(1)), null);
+
+        var toast = Assert.Single(result.Commands.OfType<ShowToastCommand>());
+        Assert.Equal("Gaming", toast.Label);
+        Assert.Equal(10, toast.RemainingMinutes);
+    }
+
+    [Fact]
+    public void Process_In_Multiple_Groups_Each_Group_Budget_Checked_Independently()
+    {
+        var state = new AgentState
+        {
+            CurrentDate = "2025-06-15",
+            CurrentRules = new List<GroupRule>
+            {
+                new() { Name = "Gaming", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 20 },
+                new() { Name = "All", Processes = new List<string> { "game.exe", "browser.exe" }, DailyBudgetMinutes = 60 }
+            },
+            LastUsageFlushTime = BaseTime,
+        };
+        state.Apps["game.exe"] = new AppUsageState { UsedTodaySeconds = 599 };
+        state.Apps["browser.exe"] = new AppUsageState();
+        state.GroupUsage["Gaming"] = new GroupUsageState();
+        state.GroupUsage["All"] = new GroupUsageState();
+        state.LastTickTime = BaseTime;
+        state.LastForegroundExe = "game.exe";
+
+        var result = AgentEngine.Tick(state, Sample("game.exe", BaseTime.AddSeconds(1)), null);
+
+        var toasts = result.Commands.OfType<ShowToastCommand>().ToList();
+        // Gaming group: used 600s of 1200s budget → 10min remaining → fires 10min toast
+        Assert.Contains(toasts, t => t.Label == "Gaming" && t.RemainingMinutes == 10);
+        // All group: used 600s of 3600s budget → 50min remaining → no toast
+        Assert.DoesNotContain(toasts, t => t.Label == "All");
+    }
 }

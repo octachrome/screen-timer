@@ -128,4 +128,45 @@ public class PersistenceTests
         Assert.True(restoredGroup.Sent1Min);
         Assert.True(restoredGroup.Exhausted);
     }
+
+    [Fact]
+    public void GroupUsageState_RoundTrips_Through_Json()
+    {
+        var state = new AgentState
+        {
+            CurrentDate = "2026-04-01",
+            CurrentRules = new List<GroupRule>
+            {
+                new() { Name = "Gaming", Processes = new List<string> { "game.exe", "game2.exe" }, DailyBudgetMinutes = 60 }
+            }
+        };
+        state.Apps["game.exe"] = new AppUsageState { UsedTodaySeconds = 500, PendingUploadSeconds = 20 };
+        state.Apps["game2.exe"] = new AppUsageState { UsedTodaySeconds = 300, PendingUploadSeconds = 10 };
+        state.GroupUsage["Gaming"] = new GroupUsageState
+        {
+            Sent10Min = true,
+            Sent5Min = true,
+            Sent1Min = false,
+            Exhausted = false
+        };
+
+        var json = JsonSerializer.Serialize(state);
+        var restored = JsonSerializer.Deserialize<AgentState>(json)!;
+
+        Assert.Single(restored.GroupUsage);
+        Assert.True(restored.GroupUsage.ContainsKey("Gaming"));
+        var restoredGroup = restored.GroupUsage["Gaming"];
+        Assert.True(restoredGroup.Sent10Min);
+        Assert.True(restoredGroup.Sent5Min);
+        Assert.False(restoredGroup.Sent1Min);
+        Assert.False(restoredGroup.Exhausted);
+
+        Assert.Equal(2, restored.Apps.Count);
+        Assert.Equal(500, restored.Apps["game.exe"].UsedTodaySeconds);
+        Assert.Equal(300, restored.Apps["game2.exe"].UsedTodaySeconds);
+
+        Assert.Single(restored.CurrentRules);
+        Assert.Equal("Gaming", restored.CurrentRules[0].Name);
+        Assert.Equal(2, restored.CurrentRules[0].Processes.Count);
+    }
 }

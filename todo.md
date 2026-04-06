@@ -56,12 +56,12 @@
 - [x] 33. Update all worker tests to use `GroupConfigDto` and `GroupRule`
 
 ## New Tests
-- [ ] 34. Add test: two processes in one group, usage from both counts toward shared budget
-- [ ] 35. Add test: notification message uses group name (not exe name)
-- [ ] 36. Add test: enforcement force-closes the current foreground exe (not the group name)
-- [ ] 37. Add test: process in multiple groups, each group's budget is checked independently
-- [ ] 38. Add test: `GroupUsageState` resets on new day
-- [ ] 39. Add test: `GroupUsageState` persists through JSON round-trip
+- [x] 34. Add test: two processes in one group, usage from both counts toward shared budget
+- [x] 35. Add test: notification message uses group name (not exe name)
+- [x] 36. Add test: enforcement force-closes the current foreground exe (not the group name)
+- [x] 37. Add test: process in multiple groups, each group's budget is checked independently
+- [x] 38. Add test: `GroupUsageState` resets on new day
+- [x] 39. Add test: `GroupUsageState` persists through JSON round-trip
 
 ## JsonStateStore
 - [x] 40. Update `JsonStateStoreTests` to include `GroupRule` and `GroupUsageState` in round-trip tests

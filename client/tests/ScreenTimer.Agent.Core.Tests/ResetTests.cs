@@ -119,4 +119,41 @@ public class ResetTests
         Assert.Equal(120, result.UpdatedState.Apps["game.exe"].PendingUploadSeconds);
         Assert.Equal(45, result.UpdatedState.Apps["social.exe"].PendingUploadSeconds);
     }
+
+    [Fact]
+    public void DateChange_ClearsGroupUsageFlags()
+    {
+        var state = new AgentState
+        {
+            CurrentDate = Yesterday.LocalDateTime.Date.ToString("yyyy-MM-dd"),
+            LastTickTime = Yesterday,
+            LastForegroundExe = null,
+            CurrentRules = new List<GroupRule>
+            {
+                new() { Name = "Gaming", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 60 },
+            },
+            Apps = new Dictionary<string, AppUsageState>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["game.exe"] = new AppUsageState { UsedTodaySeconds = 3000, PendingUploadSeconds = 100 },
+            },
+            GroupUsage = new Dictionary<string, GroupUsageState>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Gaming"] = new GroupUsageState
+                {
+                    Sent10Min = true,
+                    Sent5Min = true,
+                    Sent1Min = true,
+                    Exhausted = true,
+                },
+            },
+        };
+
+        var result = AgentEngine.Tick(state, new ForegroundSample("game.exe", Today), null);
+
+        var group = result.UpdatedState.GroupUsage["Gaming"];
+        Assert.False(group.Sent10Min);
+        Assert.False(group.Sent5Min);
+        Assert.False(group.Sent1Min);
+        Assert.False(group.Exhausted);
+    }
 }

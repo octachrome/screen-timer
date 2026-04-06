@@ -100,4 +100,26 @@ public class EnforcementTests
 
         Assert.True(result.UpdatedState.GroupUsage["game.exe"].Exhausted);
     }
+
+    [Fact]
+    public void ForceClose_Targets_Foreground_Exe_Not_Group_Name()
+    {
+        var rule = new GroupRule { Name = "Gaming", Processes = new List<string> { "game.exe" }, DailyBudgetMinutes = 1 };
+        var state = new AgentState
+        {
+            CurrentDate = BaseTime.LocalDateTime.Date.ToString("yyyy-MM-dd"),
+            CurrentRules = [rule],
+            Apps = { ["game.exe"] = new AppUsageState { UsedTodaySeconds = 55 } },
+            GroupUsage = { ["Gaming"] = new GroupUsageState() },
+            LastUsageFlushTime = BaseTime,
+            LastForegroundExe = "game.exe",
+            LastTickTime = BaseTime,
+        };
+
+        var sample = new ForegroundSample("game.exe", BaseTime.AddSeconds(5));
+        var result = AgentEngine.Tick(state, sample, null);
+
+        var close = Assert.Single(result.Commands.OfType<ForceCloseCommand>());
+        Assert.Equal("game.exe", close.ExeName);
+    }
 }

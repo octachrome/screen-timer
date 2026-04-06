@@ -149,4 +149,38 @@ public class TrackingTests
         Assert.Equal(3.0, r2.UpdatedState.Apps["game.exe"].UsedTodaySeconds);
         Assert.Equal(3.0, r2.UpdatedState.Apps["game.exe"].PendingUploadSeconds);
     }
+
+    [Fact]
+    public void TwoProcessesInOneGroup_UsageFromBothCountsTowardSharedBudget()
+    {
+        var state = new AgentState
+        {
+            CurrentDate = "2026-04-01",
+            LastUsageFlushTime = BaseTime,
+            CurrentRules = new List<GroupRule>
+            {
+                new() { Name = "Gaming", Processes = new List<string> { "game1.exe", "game2.exe" }, DailyBudgetMinutes = 10 }
+            }
+        };
+        state.Apps["game1.exe"] = new AppUsageState();
+        state.Apps["game2.exe"] = new AppUsageState();
+        state.GroupUsage["Gaming"] = new GroupUsageState();
+
+        // Tick 1: game1.exe foreground
+        var r1 = AgentEngine.Tick(state, Sample("game1.exe", BaseTime), null);
+        // Tick 2: 3s later, still game1.exe → 3s attributed to game1.exe
+        var r2 = AgentEngine.Tick(r1.UpdatedState, Sample("game1.exe", BaseTime.AddSeconds(3)), null);
+        Assert.Equal(3.0, r2.UpdatedState.Apps["game1.exe"].UsedTodaySeconds);
+
+        // Tick 3: switch to game2.exe → 2s attributed to game1.exe
+        var r3 = AgentEngine.Tick(r2.UpdatedState, Sample("game2.exe", BaseTime.AddSeconds(5)), null);
+        Assert.Equal(5.0, r3.UpdatedState.Apps["game1.exe"].UsedTodaySeconds);
+        Assert.Equal(0.0, r3.UpdatedState.Apps["game2.exe"].UsedTodaySeconds);
+
+        // Tick 4: 4s later, still game2.exe → 4s attributed to game2.exe
+        var r4 = AgentEngine.Tick(r3.UpdatedState, Sample("game2.exe", BaseTime.AddSeconds(9)), null);
+        Assert.Equal(5.0, r4.UpdatedState.Apps["game1.exe"].UsedTodaySeconds);
+        Assert.Equal(4.0, r4.UpdatedState.Apps["game2.exe"].UsedTodaySeconds);
+        // Total group usage = 9s, both processes contribute to the same group
+    }
 }
