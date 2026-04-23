@@ -22,31 +22,42 @@ Log.Logger = new LoggerConfiguration()
         outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
 
-var builder = Host.CreateApplicationBuilder(args);
-builder.Services.AddSerilog();
-
-var serverUrl = builder.Configuration.GetValue<string>("ServerUrl") ?? "http://localhost:8080";
-
-builder.Services.AddSingleton<IClock, SystemClock>();
-builder.Services.AddSingleton<IForegroundWindowProbe, Win32ForegroundWindowProbe>();
-builder.Services.AddSingleton<INotificationSink, ToastNotificationSink>();
-builder.Services.AddSingleton<IProcessController, WindowsProcessController>();
-builder.Services.AddSingleton<IStateStore>(_ => new JsonStateStore(JsonStateStore.DefaultFilePath));
-builder.Services.AddHttpClient<IAgentApiClient, AgentApiClient>(client =>
+try
 {
-    client.BaseAddress = new Uri(serverUrl);
-});
-builder.Services.AddHostedService<AgentWorker>();
+    var builder = Host.CreateApplicationBuilder(args);
+    builder.Logging.ClearProviders();
+    builder.Services.AddSerilog();
 
-var host = builder.Build();
+    var serverUrl = builder.Configuration.GetValue<string>("ServerUrl") ?? "http://localhost:8080";
 
-Log.Information("Screen Timer Agent starting — server: {ServerUrl}", serverUrl);
+    builder.Services.AddSingleton<IClock, SystemClock>();
+    builder.Services.AddSingleton<IForegroundWindowProbe, Win32ForegroundWindowProbe>();
+    builder.Services.AddSingleton<INotificationSink, ToastNotificationSink>();
+    builder.Services.AddSingleton<IProcessController, WindowsProcessController>();
+    builder.Services.AddSingleton<IStateStore>(_ => new JsonStateStore(JsonStateStore.DefaultFilePath));
+    builder.Services.AddHttpClient<IAgentApiClient, AgentApiClient>(client =>
+    {
+        client.BaseAddress = new Uri(serverUrl);
+    });
+    builder.Services.AddHostedService<AgentWorker>();
 
-await host.StartAsync();
+    var host = builder.Build();
 
-Application.EnableVisualStyles();
-Application.SetCompatibleTextRenderingDefault(false);
-Application.Run(new TrayApplicationContext(logFilePath));
+    Log.Information("Screen Timer Agent starting — server: {ServerUrl}", serverUrl);
 
-await host.StopAsync();
-Log.CloseAndFlush();
+    await host.StartAsync();
+
+    Application.EnableVisualStyles();
+    Application.SetCompatibleTextRenderingDefault(false);
+    Application.Run(new TrayApplicationContext(logFilePath));
+
+    await host.StopAsync();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Agent terminated unexpectedly");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
