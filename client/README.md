@@ -2,6 +2,10 @@
 
 A Windows background agent that tracks time spent in configured applications (by executable name) while they are in the foreground. It shows toast notifications as daily time budgets run low (at 10, 5, and 1 minute remaining) and force-closes applications when the budget is exhausted. The agent polls a Go backend server for configuration and pushes usage data back to it.
 
+NB: When playing games, Windows often enables Do Not Disturb mode, which will
+prevent screen time notifications from being visible. To fix this, set the
+screen timer app as high priority in Windows Settings > System > Notifications.
+
 ## Prerequisites
 
 - [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
