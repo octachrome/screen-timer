@@ -271,6 +271,27 @@ func TestIntegrationGroupProcessesUsageRoundTrip(t *testing.T) {
 	}
 }
 
+func TestIntegrationWeekendBudgetConfigRoundTrip(t *testing.T) {
+	ts, client := setupTestServer()
+	defer ts.Close()
+
+	_, err := client.AddGroup(mockclient.AddGroupRequest{Name: "game.exe", Processes: []string{"game.exe"}, DailyBudgetMinutes: 60, WeekendBudgetMinutes: 45})
+	if err != nil {
+		t.Fatalf("AddGroup failed: %v", err)
+	}
+
+	configResp, err := client.GetConfig()
+	if err != nil {
+		t.Fatalf("GetConfig failed: %v", err)
+	}
+	if len(configResp.Groups) != 1 {
+		t.Fatalf("expected 1 config, got %d", len(configResp.Groups))
+	}
+	if configResp.Groups[0].WeekendBudgetMinutes != 45 {
+		t.Errorf("expected weekend_budget_minutes 45, got %d", configResp.Groups[0].WeekendBudgetMinutes)
+	}
+}
+
 func TestIntegrationHealthCheck(t *testing.T) {
 	ts, client := setupTestServer()
 	defer ts.Close()

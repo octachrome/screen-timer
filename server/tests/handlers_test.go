@@ -433,6 +433,76 @@ func TestPostAgentUsageUnknownApp(t *testing.T) {
 	}
 }
 
+func TestPostAppsWithWeekendBudget(t *testing.T) {
+	_, router := setupRouter()
+
+	body := jsonBody(t, server.AddGroupRequest{Name: "Game", Processes: []string{"Game"}, DailyBudgetMinutes: 60, WeekendBudgetMinutes: 30})
+	req := httptest.NewRequest(http.MethodPost, "/api/apps", body)
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var resp server.UsageSummary
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp.WeekendBudgetMinutes != 30 {
+		t.Errorf("expected weekend_budget_minutes 30, got %d", resp.WeekendBudgetMinutes)
+	}
+}
+
+func TestPutAppsWeekendBudget(t *testing.T) {
+	store, router := setupRouter()
+	addGroup(t, store, "Game", "Game", 60)
+
+	body := jsonBody(t, server.UpdateGroupRequest{DailyBudgetMinutes: 60, WeekendBudgetMinutes: 45, Processes: []string{"Game"}})
+	req := httptest.NewRequest(http.MethodPut, "/api/apps/Game", body)
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var resp server.UsageSummary
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp.WeekendBudgetMinutes != 45 {
+		t.Errorf("expected weekend_budget_minutes 45, got %d", resp.WeekendBudgetMinutes)
+	}
+}
+
+func TestPostAppsWeekendBudgetDefaults(t *testing.T) {
+	_, router := setupRouter()
+
+	body := jsonBody(t, server.AddGroupRequest{Name: "Game", Processes: []string{"Game"}, DailyBudgetMinutes: 60})
+	req := httptest.NewRequest(http.MethodPost, "/api/apps", body)
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("expected status 201, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var resp server.UsageSummary
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp.WeekendBudgetMinutes != 60 {
+		t.Errorf("expected weekend_budget_minutes to default to 60, got %d", resp.WeekendBudgetMinutes)
+	}
+}
+
 func TestHealthCheck(t *testing.T) {
 	_, router := setupRouter()
 

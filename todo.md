@@ -27,14 +27,14 @@
 - [x] 18. Add `WeekendBudgetMinutes` to mockclient `GroupConfig`, `UsageSummary`, `AddGroupRequest`, `UpdateGroupRequest`
 
 ## Server Tests
-- [ ] 19. Store test: create group with weekend budget, verify `GetUsageSummary` returns weekend budget on Saturday
-- [ ] 20. Store test: verify `GetUsageSummary` returns weekday budget on Monday
-- [ ] 21. Store test: omitting weekend budget defaults to weekday value
-- [ ] 22. Store test: persistence round-trip preserves weekend budget
-- [ ] 23. Handler test: POST `/api/apps` with `weekend_budget_minutes`, verify response includes both
-- [ ] 24. Handler test: PUT `/api/apps/{name}` updating `weekend_budget_minutes`
-- [ ] 25. Handler test: omitting `weekend_budget_minutes` defaults to weekday value
-- [ ] 26. Integration test: add group with weekend budget, agent polls config, sees both budgets
+- [x] 19. Store test: create group with weekend budget, verify `GetUsageSummary` returns weekend budget on Saturday
+- [x] 20. Store test: verify `GetUsageSummary` returns weekday budget on Monday
+- [x] 21. Store test: omitting weekend budget defaults to weekday value
+- [x] 22. Store test: persistence round-trip preserves weekend budget
+- [x] 23. Handler test: POST `/api/apps` with `weekend_budget_minutes`, verify response includes both
+- [x] 24. Handler test: PUT `/api/apps/{name}` updating `weekend_budget_minutes`
+- [x] 25. Handler test: omitting `weekend_budget_minutes` defaults to weekday value
+- [x] 26. Integration test: add group with weekend budget, agent polls config, sees both budgets
 
 ## UI — Add Application Form (index.html)
 - [ ] 27. Add "Different on weekends" checkbox to the Add Application form

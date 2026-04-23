@@ -371,3 +371,88 @@ func TestGroupWithMultipleProcesses(t *testing.T) {
 		t.Errorf("UsedToday = %v, want %v", g.UsedToday, 60*time.Second)
 	}
 }
+
+func fixedClock(t time.Time) func() time.Time {
+	return func() time.Time { return t }
+}
+
+func TestWeekendBudgetOnSaturday(t *testing.T) {
+	s := server.NewStore()
+	saturday := time.Date(2025, 1, 4, 12, 0, 0, 0, time.UTC)
+	s.SetClock(fixedClock(saturday))
+
+	_, err := s.AddGroup("games", []string{"game.exe"}, 60*time.Minute, 30*time.Minute)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	summaries := s.GetUsageSummary()
+	if len(summaries) != 1 {
+		t.Fatalf("GetUsageSummary returned %d entries, want 1", len(summaries))
+	}
+	if summaries[0].DailyBudgetMinutes != 30 {
+		t.Errorf("DailyBudgetMinutes = %d, want 30 (weekend active)", summaries[0].DailyBudgetMinutes)
+	}
+	if summaries[0].WeekendBudgetMinutes != 30 {
+		t.Errorf("WeekendBudgetMinutes = %d, want 30", summaries[0].WeekendBudgetMinutes)
+	}
+}
+
+func TestWeekdayBudgetOnMonday(t *testing.T) {
+	s := server.NewStore()
+	monday := time.Date(2025, 1, 6, 12, 0, 0, 0, time.UTC)
+	s.SetClock(fixedClock(monday))
+
+	_, err := s.AddGroup("games", []string{"game.exe"}, 60*time.Minute, 30*time.Minute)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	summaries := s.GetUsageSummary()
+	if len(summaries) != 1 {
+		t.Fatalf("GetUsageSummary returned %d entries, want 1", len(summaries))
+	}
+	if summaries[0].DailyBudgetMinutes != 60 {
+		t.Errorf("DailyBudgetMinutes = %d, want 60 (weekday active)", summaries[0].DailyBudgetMinutes)
+	}
+	if summaries[0].WeekendBudgetMinutes != 30 {
+		t.Errorf("WeekendBudgetMinutes = %d, want 30", summaries[0].WeekendBudgetMinutes)
+	}
+}
+
+func TestWeekendBudgetDefaultsToWeekday(t *testing.T) {
+	s := server.NewStore()
+	_, err := s.AddGroup("games", []string{"game.exe"}, 60*time.Minute, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	summaries := s.GetUsageSummary()
+	if len(summaries) != 1 {
+		t.Fatalf("GetUsageSummary returned %d entries, want 1", len(summaries))
+	}
+	if summaries[0].DailyBudgetMinutes != 60 {
+		t.Errorf("DailyBudgetMinutes = %d, want 60", summaries[0].DailyBudgetMinutes)
+	}
+	if summaries[0].WeekendBudgetMinutes != 60 {
+		t.Errorf("WeekendBudgetMinutes = %d, want 60 (should default to weekday)", summaries[0].WeekendBudgetMinutes)
+	}
+}
+
+func TestPersistenceRoundTripWeekendBudget(t *testing.T) {
+	fp := filepath.Join(t.TempDir(), "test.json")
+	s1 := server.NewStoreWithFile(fp)
+	_, err := s1.AddGroup("games", []string{"game.exe"}, 60*time.Minute, 45*time.Minute)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	s2 := server.NewStoreWithFile(fp)
+	g, err := s2.GetGroup("games")
+	if err != nil {
+		t.Fatalf("games not found after reload: %v", err)
+	}
+	if g.WeekendBudget != 45*time.Minute {
+		t.Errorf("WeekendBudget = %v, want %v", g.WeekendBudget, 45*time.Minute)
+	}
+}
