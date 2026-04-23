@@ -70,7 +70,10 @@ public static class AgentEngine
                 }
             }
 
-            var budgetSeconds = rule.DailyBudgetMinutes * 60.0;
+            var dayOfWeek = sample.Timestamp.LocalDateTime.DayOfWeek;
+            var isWeekend = (dayOfWeek == DayOfWeek.Saturday || dayOfWeek == DayOfWeek.Sunday);
+            var activeBudgetMinutes = (isWeekend && rule.WeekendBudgetMinutes > 0) ? rule.WeekendBudgetMinutes : rule.DailyBudgetMinutes;
+            var budgetSeconds = activeBudgetMinutes * 60.0;
             var remainingSeconds = budgetSeconds - totalUsedSeconds;
 
             // Check if current foreground exe is a member of this group

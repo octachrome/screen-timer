@@ -18,6 +18,13 @@
         <input type="text" id="exe-name" name="exe-name" placeholder="e.g. Fortnite, Minecraft" required>
         <label for="daily-budget">Daily budget (minutes)</label>
         <input type="number" id="daily-budget" name="daily-budget" min="1" required>
+        <label>
+          <input type="checkbox" id="diff-weekend"> Different on weekends
+        </label>
+        <div id="weekend-budget-group" style="display:none;">
+          <label for="weekend-budget">Weekend budget (minutes)</label>
+          <input type="number" id="weekend-budget" name="weekend-budget" min="1">
+        </div>
         <button type="submit">Add</button>
         <div id="form-error"></div>
       </form>

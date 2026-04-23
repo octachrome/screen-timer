@@ -95,7 +95,8 @@ public sealed class AgentWorker : BackgroundService
                 {
                     Name = g.Name,
                     Processes = g.Processes,
-                    DailyBudgetMinutes = g.DailyBudgetMinutes
+                    DailyBudgetMinutes = g.DailyBudgetMinutes,
+                    WeekendBudgetMinutes = g.WeekendBudgetMinutes
                 }).ToList();
                 if (DateTimeOffset.TryParse(configResponse.TestPopupAt, out var parsed))
                     testPopupAt = parsed;

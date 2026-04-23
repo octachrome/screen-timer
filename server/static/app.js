@@ -55,7 +55,8 @@ function renderTable(summaries) {
   thead.innerHTML = `<tr>
     <th>Name</th>
     <th>Processes</th>
-    <th>Budget</th>
+    <th>Weekday Budget</th>
+    <th>Weekend Budget</th>
     <th>Used Today</th>
     <th>Remaining</th>
     <th>Actions</th>
@@ -72,8 +73,20 @@ function renderTable(summaries) {
     const tdProcesses = document.createElement('td');
     tdProcesses.textContent = row.processes.join(', ');
 
-    const tdBudget = document.createElement('td');
-    tdBudget.textContent = `${row.daily_budget_minutes} min`;
+    const tdWeekday = document.createElement('td');
+    tdWeekday.textContent = `${row.daily_budget_minutes} min`;
+
+    const tdWeekend = document.createElement('td');
+    tdWeekend.textContent = `${row.weekend_budget_minutes} min`;
+
+    // Highlight active budget column based on today's day
+    const today = new Date().getDay();
+    const isWeekend = (today === 0 || today === 6);
+    if (isWeekend) {
+      tdWeekend.style.fontWeight = 'bold';
+    } else {
+      tdWeekday.style.fontWeight = 'bold';
+    }
 
     const tdUsed = document.createElement('td');
     tdUsed.textContent = `${row.used_today_minutes} min`;
@@ -91,7 +104,7 @@ function renderTable(summaries) {
     const editBtn = document.createElement('button');
     editBtn.textContent = 'Edit';
     editBtn.addEventListener('click', () => {
-      startEdit(tdName, tdBudget, tdProcesses, row.name, row.daily_budget_minutes, row.processes);
+      startEdit(tdName, tdWeekday, tdWeekend, tdProcesses, row.name, row.daily_budget_minutes, row.weekend_budget_minutes, row.processes);
     });
 
     const deleteBtn = document.createElement('button');
@@ -106,7 +119,8 @@ function renderTable(summaries) {
 
     tr.appendChild(tdName);
     tr.appendChild(tdProcesses);
-    tr.appendChild(tdBudget);
+    tr.appendChild(tdWeekday);
+    tr.appendChild(tdWeekend);
     tr.appendChild(tdUsed);
     tr.appendChild(tdRemaining);
     tr.appendChild(tdActions);
@@ -174,9 +188,10 @@ async function deleteApp(exeName) {
  * On save: sends PUT /api/apps/{name} with the new name, budget and processes.
  * On cancel: simply re-renders the table to restore the original cells.
  */
-function startEdit(nameCell, budgetCell, processesCell, groupName, currentBudget, currentProcesses) {
+function startEdit(nameCell, weekdayCell, weekendCell, processesCell, groupName, currentWeekdayBudget, currentWeekendBudget, currentProcesses) {
   nameCell.innerHTML = '';
-  budgetCell.innerHTML = '';
+  weekdayCell.innerHTML = '';
+  weekendCell.innerHTML = '';
   processesCell.innerHTML = '';
 
   const nameInput = document.createElement('input');
@@ -184,11 +199,17 @@ function startEdit(nameCell, budgetCell, processesCell, groupName, currentBudget
   nameInput.value = groupName;
   nameCell.appendChild(nameInput);
 
-  const budgetInput = document.createElement('input');
-  budgetInput.type = 'number';
-  budgetInput.min = '1';
-  budgetInput.value = currentBudget;
-  budgetCell.appendChild(budgetInput);
+  const weekdayInput = document.createElement('input');
+  weekdayInput.type = 'number';
+  weekdayInput.min = '1';
+  weekdayInput.value = currentWeekdayBudget;
+  weekdayCell.appendChild(weekdayInput);
+
+  const weekendInput = document.createElement('input');
+  weekendInput.type = 'number';
+  weekendInput.min = '1';
+  weekendInput.value = currentWeekendBudget;
+  weekendCell.appendChild(weekendInput);
 
   const processesInput = document.createElement('input');
   processesInput.type = 'text';
@@ -203,7 +224,12 @@ function startEdit(nameCell, budgetCell, processesCell, groupName, currentBudget
     await fetch(`/api/apps/${encodeURIComponent(groupName)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: nameInput.value.trim(), daily_budget_minutes: parseInt(budgetInput.value, 10), processes }),
+      body: JSON.stringify({
+        name: nameInput.value.trim(),
+        daily_budget_minutes: parseInt(weekdayInput.value, 10),
+        weekend_budget_minutes: parseInt(weekendInput.value, 10),
+        processes,
+      }),
     });
     await refreshData();
   });
@@ -214,8 +240,8 @@ function startEdit(nameCell, budgetCell, processesCell, groupName, currentBudget
     refreshData();
   });
 
-  budgetCell.appendChild(saveBtn);
-  budgetCell.appendChild(cancelBtn);
+  weekdayCell.appendChild(saveBtn);
+  weekdayCell.appendChild(cancelBtn);
 }
 
 // ---------------------------------------------------------------------------
@@ -237,11 +263,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const formError = document.getElementById('form-error');
 
     const processes = exeInput.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    const diffWeekend = document.getElementById('diff-weekend').checked;
+    const weekendInput = document.getElementById('weekend-budget');
+
     const body = {
       name: processes.join(', '),
       processes,
       daily_budget_minutes: parseInt(budgetInput.value, 10),
     };
+    if (diffWeekend) {
+      body.weekend_budget_minutes = parseInt(weekendInput.value, 10);
+    }
 
     const res = await fetch('/api/apps', {
       method: 'POST',
@@ -252,6 +284,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (res.status === 201) {
       exeInput.value = '';
       budgetInput.value = '';
+      document.getElementById('diff-weekend').checked = false;
+      document.getElementById('weekend-budget-group').style.display = 'none';
+      weekendInput.value = '';
       formError.textContent = '';
       await refreshData();
     } else {
@@ -276,6 +311,10 @@ document.addEventListener('DOMContentLoaded', () => {
       status.className = 'error-msg';
     }
     setTimeout(() => { status.textContent = ''; }, 3000);
+  });
+
+  document.getElementById('diff-weekend').addEventListener('change', (e) => {
+    document.getElementById('weekend-budget-group').style.display = e.target.checked ? '' : 'none';
   });
 
   // Initial data load

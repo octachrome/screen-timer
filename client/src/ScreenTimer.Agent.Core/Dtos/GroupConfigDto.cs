@@ -12,4 +12,7 @@ public sealed class GroupConfigDto
 
     [JsonPropertyName("daily_budget_minutes")]
     public int DailyBudgetMinutes { get; set; }
+
+    [JsonPropertyName("weekend_budget_minutes")]
+    public int WeekendBudgetMinutes { get; set; }
 }

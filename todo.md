@@ -37,29 +37,29 @@
 - [x] 26. Integration test: add group with weekend budget, agent polls config, sees both budgets
 
 ## UI — Add Application Form (index.html)
-- [ ] 27. Add "Different on weekends" checkbox to the Add Application form
-- [ ] 28. Add "Weekend budget (minutes)" input, hidden by default
+- [x] 27. Add "Different on weekends" checkbox to the Add Application form
+- [x] 28. Add "Weekend budget (minutes)" input, hidden by default
 
 ## UI — Add Form JS Logic (app.js)
-- [ ] 29. Wire checkbox to show/hide weekend budget input
-- [ ] 30. On form submit: if checkbox unchecked, omit or send weekday value for `weekend_budget_minutes`; if checked, send the weekend input value
+- [x] 29. Wire checkbox to show/hide weekend budget input
+- [x] 30. On form submit: if checkbox unchecked, omit or send weekday value for `weekend_budget_minutes`; if checked, send the weekend input value
 
 ## UI — Tracked Applications Table (app.js)
-- [ ] 31. Split "Budget" column into "Weekday" and "Weekend" columns
-- [ ] 32. Bold/highlight the column that applies today (weekday or weekend)
+- [x] 31. Split "Budget" column into "Weekday" and "Weekend" columns
+- [x] 32. Bold/highlight the column that applies today (weekday or weekend)
 
 ## UI — Inline Edit (app.js)
-- [ ] 33. In `startEdit()`, show two number inputs for weekday + weekend budgets
-- [ ] 34. On save, send both budget values in the PUT request
+- [x] 33. In `startEdit()`, show two number inputs for weekday + weekend budgets
+- [x] 34. On save, send both budget values in the PUT request
 
 ## C# Agent — DTOs and Models
-- [ ] 35. Add `WeekendBudgetMinutes` property to `GroupConfigDto.cs` with `[JsonPropertyName("weekend_budget_minutes")]`
-- [ ] 36. Add `WeekendBudgetMinutes` property to `GroupRule.cs`
-- [ ] 37. Update `AgentWorker.cs` mapping to copy `WeekendBudgetMinutes` from DTO to GroupRule
+- [x] 35. Add `WeekendBudgetMinutes` property to `GroupConfigDto.cs` with `[JsonPropertyName("weekend_budget_minutes")]`
+- [x] 36. Add `WeekendBudgetMinutes` property to `GroupRule.cs`
+- [x] 37. Update `AgentWorker.cs` mapping to copy `WeekendBudgetMinutes` from DTO to GroupRule
 
 ## C# Agent — Engine Logic
-- [ ] 38. Update `AgentEngine.Tick()` to pick correct budget based on day of week
-- [ ] 39. Make day-of-week determination injectable/testable (e.g. pass current time or DayOfWeek)
+- [x] 38. Update `AgentEngine.Tick()` to pick correct budget based on day of week
+- [x] 39. Make day-of-week determination injectable/testable (e.g. pass current time or DayOfWeek)
 
 ## C# Agent Tests
 - [ ] 40. Test: engine applies weekday budget on a weekday
