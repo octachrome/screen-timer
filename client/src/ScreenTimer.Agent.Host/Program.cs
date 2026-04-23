@@ -6,8 +6,24 @@ using ScreenTimer.Agent.Windows.Http;
 using ScreenTimer.Agent.Windows.Notifications;
 using ScreenTimer.Agent.Windows.Processes;
 using ScreenTimer.Agent.Windows.Storage;
+using Serilog;
+
+var logDirectory = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+    "ScreenTimer", "logs");
+Directory.CreateDirectory(logDirectory);
+var logFilePath = Path.Combine(logDirectory, "agent.log");
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .WriteTo.File(logFilePath,
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 14,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .CreateLogger();
 
 var builder = Host.CreateApplicationBuilder(args);
+builder.Services.AddSerilog();
 
 var serverUrl = builder.Configuration.GetValue<string>("ServerUrl") ?? "http://localhost:8080";
 
@@ -24,7 +40,13 @@ builder.Services.AddHostedService<AgentWorker>();
 
 var host = builder.Build();
 
-var logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("ScreenTimer.Agent");
-logger.LogInformation("Screen Timer Agent starting — server: {ServerUrl}", serverUrl);
+Log.Information("Screen Timer Agent starting — server: {ServerUrl}", serverUrl);
 
-host.Run();
+await host.StartAsync();
+
+Application.EnableVisualStyles();
+Application.SetCompatibleTextRenderingDefault(false);
+Application.Run(new TrayApplicationContext(logFilePath));
+
+await host.StopAsync();
+Log.CloseAndFlush();
