@@ -17,8 +17,9 @@ var logFilePath = Path.Combine(logDirectory, "agent.log");
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .WriteTo.File(logFilePath,
-        rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 14,
+        fileSizeLimitBytes: 10 * 1024 * 1024,
+        rollOnFileSizeLimit: true,
+        retainedFileCountLimit: 5,
         outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
 
