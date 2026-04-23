@@ -62,6 +62,6 @@
 - [x] 39. Make day-of-week determination injectable/testable (e.g. pass current time or DayOfWeek)
 
 ## C# Agent Tests
-- [ ] 40. Test: engine applies weekday budget on a weekday
-- [ ] 41. Test: engine applies weekend budget on a weekend
-- [ ] 42. Test: notifications fire at correct thresholds for weekend budget on weekend
+- [x] 40. Test: engine applies weekday budget on a weekday
+- [x] 41. Test: engine applies weekend budget on a weekend
+- [x] 42. Test: notifications fire at correct thresholds for weekend budget on weekend
