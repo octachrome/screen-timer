@@ -27,6 +27,7 @@ type persistedGroup struct {
 	Name          string   `json:"name"`
 	Processes     []string `json:"processes"`
 	DailyBudget   int64    `json:"daily_budget_ns"`
+	WeekendBudget int64    `json:"weekend_budget_ns"`
 	UsedToday     int64    `json:"used_today_ns"`
 	LastResetDate string   `json:"last_reset_date"`
 }
@@ -84,6 +85,7 @@ func (s *Store) save() {
 			Name:          g.Name,
 			Processes:     g.Processes,
 			DailyBudget:   int64(g.DailyBudget),
+			WeekendBudget: int64(g.WeekendBudget),
 			UsedToday:     int64(g.UsedToday),
 			LastResetDate: g.LastResetDate,
 		}
@@ -134,6 +136,7 @@ func (s *Store) load() {
 				Name:          pg.Name,
 				Processes:     pg.Processes,
 				DailyBudget:   time.Duration(pg.DailyBudget),
+				WeekendBudget: time.Duration(pg.WeekendBudget),
 				UsedToday:     time.Duration(pg.UsedToday),
 				LastResetDate: pg.LastResetDate,
 			}
@@ -159,7 +162,7 @@ func (s *Store) load() {
 
 // AddGroup registers a new group to track. Returns an error if a
 // group with the same name already exists (duplicate → 409 in the API).
-func (s *Store) AddGroup(name string, processes []string, budget time.Duration) (*Group, error) {
+func (s *Store) AddGroup(name string, processes []string, budget time.Duration, weekendBudget time.Duration) (*Group, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -168,9 +171,10 @@ func (s *Store) AddGroup(name string, processes []string, budget time.Duration) 
 	}
 
 	g := &Group{
-		Name:        name,
-		Processes:   processes,
-		DailyBudget: budget,
+		Name:          name,
+		Processes:     processes,
+		DailyBudget:   budget,
+		WeekendBudget: weekendBudget,
 	}
 	s.groups[name] = g
 	s.save()
@@ -207,7 +211,7 @@ func (s *Store) ListGroups() []*Group {
 // UpdateGroup changes the name, daily budget and process list for an existing group.
 // If newName differs from name, the group is renamed. Returns an error if the
 // group is not found (→ 404) or if newName already exists (→ 409).
-func (s *Store) UpdateGroup(name string, newName string, budget time.Duration, processes []string) (*Group, error) {
+func (s *Store) UpdateGroup(name string, newName string, budget time.Duration, weekendBudget time.Duration, processes []string) (*Group, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -224,6 +228,7 @@ func (s *Store) UpdateGroup(name string, newName string, budget time.Duration, p
 		s.groups[newName] = g
 	}
 	g.DailyBudget = budget
+	g.WeekendBudget = weekendBudget
 	g.Processes = processes
 	s.save()
 	return g, nil
@@ -317,7 +322,7 @@ func (s *Store) GetUsageSummary() []UsageSummary {
 
 	result := make([]UsageSummary, 0, len(s.groups))
 	for _, g := range s.groups {
-		result = append(result, g.ToUsageSummary())
+		result = append(result, g.ToUsageSummary(s.clock()))
 	}
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].Name < result[j].Name

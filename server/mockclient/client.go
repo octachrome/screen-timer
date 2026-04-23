@@ -11,7 +11,8 @@ import (
 type GroupConfig struct {
 	Name               string   `json:"name"`
 	Processes          []string `json:"processes"`
-	DailyBudgetMinutes int      `json:"daily_budget_minutes"`
+	DailyBudgetMinutes   int      `json:"daily_budget_minutes"`
+	WeekendBudgetMinutes int      `json:"weekend_budget_minutes"`
 }
 
 // AgentConfigResponse mirrors the server's AgentConfigResponse type.
@@ -34,8 +35,9 @@ type usagePush struct {
 type UsageSummary struct {
 	Name               string   `json:"name"`
 	Processes          []string `json:"processes"`
-	DailyBudgetMinutes int      `json:"daily_budget_minutes"`
-	UsedTodayMinutes   int      `json:"used_today_minutes"`
+	DailyBudgetMinutes   int      `json:"daily_budget_minutes"`
+	WeekendBudgetMinutes int      `json:"weekend_budget_minutes"`
+	UsedTodayMinutes     int      `json:"used_today_minutes"`
 	RemainingMinutes   int      `json:"remaining_minutes"`
 }
 
@@ -43,14 +45,16 @@ type UsageSummary struct {
 type AddGroupRequest struct {
 	Name               string   `json:"name"`
 	Processes          []string `json:"processes"`
-	DailyBudgetMinutes int      `json:"daily_budget_minutes"`
+	DailyBudgetMinutes   int      `json:"daily_budget_minutes"`
+	WeekendBudgetMinutes int      `json:"weekend_budget_minutes"`
 }
 
 // UpdateGroupRequest mirrors the server's UpdateGroupRequest.
 type UpdateGroupRequest struct {
-	Name               string   `json:"name"`
-	DailyBudgetMinutes int      `json:"daily_budget_minutes"`
-	Processes          []string `json:"processes"`
+	Name                 string   `json:"name"`
+	DailyBudgetMinutes   int      `json:"daily_budget_minutes"`
+	WeekendBudgetMinutes int      `json:"weekend_budget_minutes"`
+	Processes            []string `json:"processes"`
 }
 
 // Client is a mock HTTP client that speaks the same REST protocol as the C# agent.

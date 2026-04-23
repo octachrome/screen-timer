@@ -19,7 +19,7 @@ func setupRouter() (*server.Store, *http.ServeMux) {
 
 func addGroup(t *testing.T, store *server.Store, name string, process string, budget int) {
 	t.Helper()
-	_, err := store.AddGroup(name, []string{process}, time.Duration(budget)*time.Minute)
+	_, err := store.AddGroup(name, []string{process}, time.Duration(budget)*time.Minute, 0)
 	if err != nil {
 		t.Fatalf("failed to add group %s: %v", name, err)
 	}

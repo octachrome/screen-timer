@@ -12,7 +12,7 @@ import (
 
 func TestAddGroup(t *testing.T) {
 	s := server.NewStore()
-	g, err := s.AddGroup("firefox", []string{"firefox"}, 60*time.Minute)
+	g, err := s.AddGroup("firefox", []string{"firefox"}, 60*time.Minute, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -37,12 +37,12 @@ func TestAddGroup(t *testing.T) {
 
 func TestAddDuplicateGroup(t *testing.T) {
 	s := server.NewStore()
-	_, err := s.AddGroup("firefox", []string{"firefox"}, 60*time.Minute)
+	_, err := s.AddGroup("firefox", []string{"firefox"}, 60*time.Minute, 0)
 	if err != nil {
 		t.Fatalf("unexpected error on first add: %v", err)
 	}
 
-	_, err = s.AddGroup("firefox", []string{"firefox"}, 30*time.Minute)
+	_, err = s.AddGroup("firefox", []string{"firefox"}, 30*time.Minute, 0)
 	if err == nil {
 		t.Fatal("expected error on duplicate add, got nil")
 	}
@@ -50,7 +50,7 @@ func TestAddDuplicateGroup(t *testing.T) {
 
 func TestGetGroup(t *testing.T) {
 	s := server.NewStore()
-	_, err := s.AddGroup("chrome", []string{"chrome"}, 45*time.Minute)
+	_, err := s.AddGroup("chrome", []string{"chrome"}, 45*time.Minute, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -74,12 +74,12 @@ func TestGetGroup(t *testing.T) {
 
 func TestUpdateGroup(t *testing.T) {
 	s := server.NewStore()
-	_, err := s.AddGroup("slack", []string{"slack"}, 30*time.Minute)
+	_, err := s.AddGroup("slack", []string{"slack"}, 30*time.Minute, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	g, err := s.UpdateGroup("slack", "slack", 90*time.Minute, []string{"slack"})
+	g, err := s.UpdateGroup("slack", "slack", 90*time.Minute, 0, []string{"slack"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -92,7 +92,7 @@ func TestUpdateGroup(t *testing.T) {
 		t.Errorf("GetGroup after update: DailyBudget = %v, want %v", got.DailyBudget, 90*time.Minute)
 	}
 
-	_, err = s.UpdateGroup("unknown", "unknown", 10*time.Minute, []string{"unknown"})
+	_, err = s.UpdateGroup("unknown", "unknown", 10*time.Minute, 0, []string{"unknown"})
 	if err == nil {
 		t.Fatal("expected error for unknown group, got nil")
 	}
@@ -100,7 +100,7 @@ func TestUpdateGroup(t *testing.T) {
 
 func TestDeleteGroup(t *testing.T) {
 	s := server.NewStore()
-	_, _ = s.AddGroup("discord", []string{"discord"}, 20*time.Minute)
+	_, _ = s.AddGroup("discord", []string{"discord"}, 20*time.Minute, 0)
 
 	err := s.DeleteGroup("discord")
 	if err != nil {
@@ -120,7 +120,7 @@ func TestDeleteGroup(t *testing.T) {
 
 func TestRecordUsage(t *testing.T) {
 	s := server.NewStore()
-	_, _ = s.AddGroup("spotify", []string{"spotify"}, 60*time.Minute)
+	_, _ = s.AddGroup("spotify", []string{"spotify"}, 60*time.Minute, 0)
 
 	err := s.RecordUsage("spotify", 30, 0)
 	if err != nil {
@@ -135,7 +135,7 @@ func TestRecordUsage(t *testing.T) {
 
 func TestRecordUsageAccumulates(t *testing.T) {
 	s := server.NewStore()
-	_, _ = s.AddGroup("vscode", []string{"vscode"}, 120*time.Minute)
+	_, _ = s.AddGroup("vscode", []string{"vscode"}, 120*time.Minute, 0)
 
 	_ = s.RecordUsage("vscode", 10, 0)
 	_ = s.RecordUsage("vscode", 20, 0)
@@ -149,7 +149,7 @@ func TestRecordUsageAccumulates(t *testing.T) {
 
 func TestRecordUsageDayReset(t *testing.T) {
 	s := server.NewStore()
-	_, _ = s.AddGroup("zoom", []string{"zoom"}, 60*time.Minute)
+	_, _ = s.AddGroup("zoom", []string{"zoom"}, 60*time.Minute, 0)
 
 	_ = s.RecordUsage("zoom", 100, 0)
 
@@ -181,7 +181,7 @@ func TestRecordUsageUnknownApp(t *testing.T) {
 
 func TestRecordUsageTotalRecovery(t *testing.T) {
 	s := server.NewStore()
-	_, _ = s.AddGroup("game", []string{"game"}, 60*time.Minute)
+	_, _ = s.AddGroup("game", []string{"game"}, 60*time.Minute, 0)
 
 	// Simulate: server knows 10s usage, client reports 5s delta but 100s total
 	_ = s.RecordUsage("game", 10, 0)  // initial 10s
@@ -196,8 +196,8 @@ func TestRecordUsageTotalRecovery(t *testing.T) {
 func TestPersistenceRoundTrip(t *testing.T) {
 	fp := filepath.Join(t.TempDir(), "test.json")
 	s1 := server.NewStoreWithFile(fp)
-	_, _ = s1.AddGroup("chrome", []string{"chrome"}, 60*time.Minute)
-	_, _ = s1.AddGroup("firefox", []string{"firefox"}, 120*time.Minute)
+	_, _ = s1.AddGroup("chrome", []string{"chrome"}, 60*time.Minute, 0)
+	_, _ = s1.AddGroup("firefox", []string{"firefox"}, 120*time.Minute, 0)
 	_ = s1.RecordUsage("chrome", 300, 0)
 
 	// Create a new store from the same file
@@ -226,7 +226,7 @@ func TestPersistenceNonExistentFile(t *testing.T) {
 		t.Errorf("expected 0 groups for new file, got %d", len(groups))
 	}
 	// Should work fine — adding a group creates the file
-	_, err := s.AddGroup("test", []string{"test"}, 30*time.Minute)
+	_, err := s.AddGroup("test", []string{"test"}, 30*time.Minute, 0)
 	if err != nil {
 		t.Fatalf("AddGroup failed: %v", err)
 	}
@@ -234,8 +234,8 @@ func TestPersistenceNonExistentFile(t *testing.T) {
 
 func TestGetUsageSummary(t *testing.T) {
 	s := server.NewStore()
-	_, _ = s.AddGroup("alpha", []string{"alpha"}, 60*time.Minute)
-	_, _ = s.AddGroup("beta", []string{"beta"}, 120*time.Minute)
+	_, _ = s.AddGroup("alpha", []string{"alpha"}, 60*time.Minute, 0)
+	_, _ = s.AddGroup("beta", []string{"beta"}, 120*time.Minute, 0)
 
 	_ = s.RecordUsage("alpha", 600, 0) // 10 minutes
 	_ = s.RecordUsage("beta", 1800, 0) // 30 minutes
@@ -276,8 +276,8 @@ func TestGetUsageSummary(t *testing.T) {
 func TestRecordUsageMultipleGroups(t *testing.T) {
 	s := server.NewStore()
 	// Two groups both contain the same process "shared.exe"
-	_, _ = s.AddGroup("group-a", []string{"shared.exe"}, 60*time.Minute)
-	_, _ = s.AddGroup("group-b", []string{"shared.exe"}, 120*time.Minute)
+	_, _ = s.AddGroup("group-a", []string{"shared.exe"}, 60*time.Minute, 0)
+	_, _ = s.AddGroup("group-b", []string{"shared.exe"}, 120*time.Minute, 0)
 
 	err := s.RecordUsage("shared.exe", 45, 0)
 	if err != nil {
@@ -350,13 +350,13 @@ func TestPersistenceMigration(t *testing.T) {
 func TestGroupWithMultipleProcesses(t *testing.T) {
 	s := server.NewStore()
 	// Create group with one process
-	_, err := s.AddGroup("browsers", []string{"chrome.exe"}, 60*time.Minute)
+	_, err := s.AddGroup("browsers", []string{"chrome.exe"}, 60*time.Minute, 0)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	// Update to have multiple processes
-	_, err = s.UpdateGroup("browsers", "browsers", 60*time.Minute, []string{"chrome.exe", "firefox.exe", "edge.exe"})
+	_, err = s.UpdateGroup("browsers", "browsers", 60*time.Minute, 0, []string{"chrome.exe", "firefox.exe", "edge.exe"})
 	if err != nil {
 		t.Fatalf("unexpected error on update: %v", err)
 	}

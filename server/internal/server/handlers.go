@@ -73,7 +73,7 @@ func handleListApps(store *Store) http.HandlerFunc {
 		groups := store.ListGroups()
 		summaries := make([]UsageSummary, len(groups))
 		for i := range groups {
-			summaries[i] = groups[i].ToUsageSummary()
+			summaries[i] = groups[i].ToUsageSummary(time.Now())
 		}
 		writeJSON(w, http.StatusOK, summaries)
 	}
@@ -101,12 +101,16 @@ func handleAddApp(store *Store) http.HandlerFunc {
 			return
 		}
 		budget := time.Duration(req.DailyBudgetMinutes) * time.Minute
-		group, err := store.AddGroup(req.Name, req.Processes, budget)
+		weekendBudget := time.Duration(req.WeekendBudgetMinutes) * time.Minute
+		if req.WeekendBudgetMinutes <= 0 {
+			weekendBudget = budget
+		}
+		group, err := store.AddGroup(req.Name, req.Processes, budget, weekendBudget)
 		if err != nil {
 			writeError(w, http.StatusConflict, err.Error())
 			return
 		}
-		summary := group.ToUsageSummary()
+		summary := group.ToUsageSummary(time.Now())
 		writeJSON(w, http.StatusCreated, summary)
 	}
 }
@@ -125,11 +129,15 @@ func handleUpdateApp(store *Store) http.HandlerFunc {
 			return
 		}
 		budget := time.Duration(req.DailyBudgetMinutes) * time.Minute
+		weekendBudget := time.Duration(req.WeekendBudgetMinutes) * time.Minute
+		if req.WeekendBudgetMinutes <= 0 {
+			weekendBudget = budget
+		}
 		newName := req.Name
 		if newName == "" {
 			newName = name
 		}
-		group, err := store.UpdateGroup(name, newName, budget, req.Processes)
+		group, err := store.UpdateGroup(name, newName, budget, weekendBudget, req.Processes)
 		if err != nil {
 			if strings.HasPrefix(err.Error(), "group already exists") {
 				writeError(w, http.StatusConflict, err.Error())
@@ -138,7 +146,7 @@ func handleUpdateApp(store *Store) http.HandlerFunc {
 			}
 			return
 		}
-		summary := group.ToUsageSummary()
+		summary := group.ToUsageSummary(time.Now())
 		writeJSON(w, http.StatusOK, summary)
 	}
 }
